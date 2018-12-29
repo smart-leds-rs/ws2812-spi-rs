@@ -1,0 +1,27 @@
+[package]
+name = "ws2812-spi"
+version = "0.1.0"
+authors = ["David Sawatzke <david-sawatzke@users.noreply.github.com>"]
+edition = "2018"
+
+[dependencies]
+nb = "0.1.1"
+
+[dependencies.embedded-hal]
+features = ["unproven"]
+version = "0.2.1"
+
+[dev-dependencies]
+bare-metal = "0.2.4"
+cortex-m = "0.5.8"
+cortex-m-rt = { version = "0.6" }
+panic-halt = "0.2"
+stm32f0xx-hal = {version = "0.10.1", features = ["stm32f030x4"]}
+
+[profile.dev]
+debug = true
+
+[profile.release]
+debug = true
+lto = true
+opt-level = "s"
