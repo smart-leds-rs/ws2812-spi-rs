@@ -46,14 +46,12 @@ fn main() -> ! {
         let mut data = [0; 9];
         let mut ws = Ws2812::new(spi, &mut data);
         loop {
-            ws.write(0, 0, 0, 0x80);
-            ws.write(1, 0, 0x80, 0);
-            ws.write(2, 0x80, 0, 0);
+            ws.write(0, (0, 0, 0x10));
+            ws.write(1, (0, 0x10, 0));
+            ws.write(2, (0x10, 0, 0));
             ws.flush().unwrap();
             delay.delay_ms(1000 as u16);
-            ws.write(1, 0, 0, 0x80);
-            ws.write(2, 0, 0x80, 0);
-            ws.write(0, 0x80, 0, 0);
+            ws.clear();
             ws.flush().unwrap();
             delay.delay_ms(1000 as u16);
         }

@@ -35,10 +35,12 @@ where
     /// This writes the pixel data to the data slice
     ///
     /// Please make sure your slice is big enough
-    pub fn write(&mut self, pos: usize, r: u8, g: u8, b: u8) {
-        self.data[pos * 3] = g;
-        self.data[(pos * 3) + 1] = r;
-        self.data[(pos * 3) + 2] = b;
+    ///
+    /// Color is rgb
+    pub fn write(&mut self, pos: usize, color: (u8, u8, u8)) {
+        self.data[pos * 3] = color.1;
+        self.data[(pos * 3) + 1] = color.0;
+        self.data[(pos * 3) + 2] = color.2;
     }
 
     pub fn clear(&mut self) {
