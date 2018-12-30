@@ -83,7 +83,7 @@ fn main() -> ! {
                 }
                 main -= 1;
             }
-            ws.write(data.iter().map(|a| (a.0, a.1, a.2))).unwrap();
+            ws.write(data.iter().cloned()).unwrap();
             delay.delay_ms(100 as u16);
         }
     }
