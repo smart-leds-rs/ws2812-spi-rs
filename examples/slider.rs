@@ -53,22 +53,22 @@ fn main() -> ! {
         loop {
             for i in 0..max {
                 let distance = (main as i32 - i as i32).abs() as u8;
-                let c1 = if i == main {
-                    color1
-                } else {
-                    (
-                        color1.0 / distance,
-                        color1.1 / distance,
-                        color1.2 / distance,
-                    )
-                };
-                let c2 = (
-                    color2.0 / (max as u8 - distance),
-                    color2.1 / (max as u8 - distance),
-                    color2.2 / (max as u8 - distance),
+                let c1 = (
+                    color1.0 as u32 * (max as u32 - distance as u32) / max as u32,
+                    color1.1 as u32 * (max as u32 - distance as u32) / max as u32,
+                    color1.2 as u32 * (max as u32 - distance as u32) / max as u32,
                 );
-                let ct = (c1.0 + c2.0, c1.1 + c2.1, c1.2 + c2.2);
-                ws.write(i, ct);
+                let c2 = (
+                    color2.0 as u32 * distance as u32 / max as u32,
+                    color2.1 as u32 * distance as u32 / max as u32,
+                    color2.2 as u32 * distance as u32 / max as u32,
+                );
+                let ct = (
+                    (c1.0 + c2.0) as u8,
+                    (c1.1 + c2.1) as u8,
+                    (c1.2 + c2.2) as u8,
+                );
+                ws.write(i as usize, ct);
             }
             if up {
                 if main == max - 1 {
