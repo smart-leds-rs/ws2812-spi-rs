@@ -1,3 +1,7 @@
+//! # Use ws2812 leds via spi
+//!
+//!
+
 #![no_std]
 
 extern crate embedded_hal as hal;
@@ -7,7 +11,12 @@ use hal::spi::{FullDuplex, Mode, Phase, Polarity};
 use nb;
 use nb::block;
 
-/// SPI mode
+/// SPI mode that is needed for this crate
+///
+/// Provided for convenience
+///
+/// If you have strange issues, like the first led always running, you should
+/// verify that the spi is idle low
 pub const MODE: Mode = Mode {
     polarity: Polarity::IdleLow,
     phase: Phase::CaptureOnFirstTransition,
@@ -17,20 +26,24 @@ pub struct Ws2812<SPI> {
     spi: SPI,
 }
 
-/// RGB
+/// Color type with RGB colors
 pub type Color = (u8, u8, u8);
 
 impl<SPI, E> Ws2812<SPI>
 where
     SPI: FullDuplex<u8, Error = E>,
 {
-    /// The SPI bus should run with 3 Mhz, otherwise this won't work
+    /// The SPI bus should run with 3 Mhz, otherwise this won't work.
+    ///
+    /// You may need to look at the datasheet and your own hal to verify this.
+    ///
     /// Please ensure that the mcu is pretty fast, otherwise weird timing
     /// issues will occurr
     pub fn new(spi: SPI) -> Ws2812<SPI> {
         Self { spi }
     }
 
+    /// Write all the items of an iterator to a ws2812 strip
     pub fn write<'a, T>(&mut self, iterator: T) -> Result<(), E>
     where
         T: Iterator<Item = Color>,
@@ -47,7 +60,8 @@ where
         Ok(())
     }
 
-    pub fn write_byte(&mut self, mut data: u8) -> Result<(), E> {
+    /// Write a single byte for ws2812 devices
+    fn write_byte(&mut self, mut data: u8) -> Result<(), E> {
         let mut serial_bits: u32 = 0;
         for _ in 0..3 {
             let bit = data & 0x80;
@@ -74,6 +88,7 @@ where
     }
 }
 
+/// An iterator that provides brightness reduction
 pub struct Brightness<I> {
     iter: I,
     brightness: u8,
@@ -96,6 +111,9 @@ where
     }
 }
 
+/// Pass your iterator into this function to get reduced brightness
+///
+/// This is linear scaling, so it won't appear linear to human eyes
 pub fn brightness<I>(iter: I, brightness: u8) -> Brightness<I>
 where
     I: Iterator<Item = Color>,
