@@ -43,16 +43,17 @@ fn main() -> ! {
             3_000_000.hz(),
             clocks,
         );
-        let mut data = [0; 9];
-        let mut ws = Ws2812::new(spi, &mut data);
+
+        let mut data = [(0, 0, 0); 3];
+        let mut empty = [(0, 0, 0); 3];
+        let mut ws = Ws2812::new(spi);
         loop {
-            ws.write(0, (0, 0, 0x10));
-            ws.write(1, (0, 0x10, 0));
-            ws.write(2, (0x10, 0, 0));
-            ws.flush().unwrap();
+            data[0] = (0, 0, 0x10);
+            data[1] = (0, 0x10, 0);
+            data[2] = (0x10, 0, 0);
+            ws.write(data.iter()).unwrap();
             delay.delay_ms(1000 as u16);
-            ws.clear();
-            ws.flush().unwrap();
+            ws.write(empty.iter()).unwrap();
             delay.delay_ms(1000 as u16);
         }
     }

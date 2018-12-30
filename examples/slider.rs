@@ -44,11 +44,11 @@ fn main() -> ! {
             clocks,
         );
         const max: usize = 8;
-        const color1: (u8, u8, u8) = (0x00, 0xc3 / 5, 0x36 / 5);
-        const color2: (u8, u8, u8) = (0x00, 0x24 / 5, 0xb0 / 5);
-        let mut data = [0; max * 3];
+        const color1: (u8, u8, u8) = (0x00, 0xc3, 0x36);
+        const color2: (u8, u8, u8) = (0x00, 0x24, 0xb0);
+        let mut data = [(0, 0, 0); max];
         let mut main = 0;
-        let mut ws = Ws2812::new(spi, &mut data);
+        let mut ws = Ws2812::new(spi);
         let mut up = true;
         loop {
             for i in 0..max {
@@ -68,7 +68,7 @@ fn main() -> ! {
                     (c1.1 + c2.1) as u8,
                     (c1.2 + c2.2) as u8,
                 );
-                ws.write(i as usize, ct);
+                data[i] = ct;
             }
             if up {
                 if main == max - 1 {
@@ -83,7 +83,7 @@ fn main() -> ! {
                 }
                 main -= 1;
             }
-            ws.flush().unwrap();
+            ws.write(data.iter()).unwrap();
             delay.delay_ms(100 as u16);
         }
     }
