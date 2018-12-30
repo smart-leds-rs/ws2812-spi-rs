@@ -33,7 +33,7 @@ where
 
     pub fn write<'a, T>(&mut self, iterator: T) -> Result<(), E>
     where
-        T: Iterator<Item = &'a Color>,
+        T: Iterator<Item = Color>,
     {
         for item in iterator {
             self.write_byte(item.1)?;
@@ -72,4 +72,33 @@ where
         self.spi.read().ok();
         Ok(())
     }
+}
+
+pub struct Brightness<I> {
+    iter: I,
+    brightness: u8,
+}
+
+impl<'a, I> Iterator for Brightness<I>
+where
+    I: Iterator<Item = Color>,
+{
+    type Item = Color;
+
+    fn next(&mut self) -> Option<Color> {
+        self.iter.next().map(|a| {
+            (
+                (a.0 as u32 * self.brightness as u32 / 256) as u8,
+                (a.1 as u32 * self.brightness as u32 / 256) as u8,
+                (a.2 as u32 * self.brightness as u32 / 256) as u8,
+            )
+        })
+    }
+}
+
+pub fn brightness<I>(iter: I, brightness: u8) -> Brightness<I>
+where
+    I: Iterator<Item = Color>,
+{
+    Brightness { iter, brightness }
 }

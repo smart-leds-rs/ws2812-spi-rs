@@ -44,8 +44,8 @@ fn main() -> ! {
             clocks,
         );
         const max: usize = 8;
-        const color1: (u8, u8, u8) = (0x00, 0xc3, 0x36);
-        const color2: (u8, u8, u8) = (0x00, 0x24, 0xb0);
+        const color1: (u8, u8, u8) = (0x00, 0xc3 / 5, 0x36 / 5);
+        const color2: (u8, u8, u8) = (0x00, 0x24 / 5, 0xb0 / 5);
         let mut data = [(0, 0, 0); max];
         let mut main = 0;
         let mut ws = Ws2812::new(spi);
@@ -83,7 +83,7 @@ fn main() -> ! {
                 }
                 main -= 1;
             }
-            ws.write(data.iter()).unwrap();
+            ws.write(data.iter().map(|a| (a.0, a.1, a.2))).unwrap();
             delay.delay_ms(100 as u16);
         }
     }

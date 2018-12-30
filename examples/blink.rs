@@ -51,9 +51,9 @@ fn main() -> ! {
             data[0] = (0, 0, 0x10);
             data[1] = (0, 0x10, 0);
             data[2] = (0x10, 0, 0);
-            ws.write(data.iter()).unwrap();
+            ws.write(data.iter().map(|a| (a.0, a.1, a.2))).unwrap();
             delay.delay_ms(1000 as u16);
-            ws.write(empty.iter()).unwrap();
+            ws.write(empty.iter().map(|a| (a.0, a.1, a.2))).unwrap();
             delay.delay_ms(1000 as u16);
         }
     }
