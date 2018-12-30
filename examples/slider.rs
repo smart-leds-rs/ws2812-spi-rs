@@ -43,25 +43,25 @@ fn main() -> ! {
             3_000_000.hz(),
             clocks,
         );
-        const max: usize = 8;
-        const color1: (u8, u8, u8) = (0x00, 0xc3 / 5, 0x36 / 5);
-        const color2: (u8, u8, u8) = (0x00, 0x24 / 5, 0xb0 / 5);
-        let mut data = [(0, 0, 0); max];
+        const MAX: usize = 8;
+        const COLOR1: (u8, u8, u8) = (0x00, 0xc3 / 5, 0x36 / 5);
+        const COLOR2: (u8, u8, u8) = (0x00, 0x24 / 5, 0xb0 / 5);
+        let mut data = [(0, 0, 0); MAX];
         let mut main = 0;
         let mut ws = Ws2812::new(spi);
         let mut up = true;
         loop {
-            for i in 0..max {
+            for i in 0..MAX {
                 let distance = (main as i32 - i as i32).abs() as u8;
                 let c1 = (
-                    color1.0 as u32 * (max as u32 - distance as u32) / max as u32,
-                    color1.1 as u32 * (max as u32 - distance as u32) / max as u32,
-                    color1.2 as u32 * (max as u32 - distance as u32) / max as u32,
+                    COLOR1.0 as u32 * (MAX as u32 - distance as u32) / MAX as u32,
+                    COLOR1.1 as u32 * (MAX as u32 - distance as u32) / MAX as u32,
+                    COLOR1.2 as u32 * (MAX as u32 - distance as u32) / MAX as u32,
                 );
                 let c2 = (
-                    color2.0 as u32 * distance as u32 / max as u32,
-                    color2.1 as u32 * distance as u32 / max as u32,
-                    color2.2 as u32 * distance as u32 / max as u32,
+                    COLOR2.0 as u32 * distance as u32 / MAX as u32,
+                    COLOR2.1 as u32 * distance as u32 / MAX as u32,
+                    COLOR2.2 as u32 * distance as u32 / MAX as u32,
                 );
                 let ct = (
                     (c1.0 + c2.0) as u8,
@@ -71,7 +71,7 @@ fn main() -> ! {
                 data[i] = ct;
             }
             if up {
-                if main == max - 1 {
+                if main == MAX - 1 {
                     up = false;
                     main -= 2;
                 }

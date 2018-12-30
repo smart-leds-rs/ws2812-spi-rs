@@ -45,7 +45,7 @@ fn main() -> ! {
         );
 
         let mut data = [(0, 0, 0); 3];
-        let mut empty = [(0, 0, 0); 3];
+        let empty = [(0, 0, 0); 3];
         let mut ws = Ws2812::new(spi);
         loop {
             data[0] = (0, 0, 0x10);
