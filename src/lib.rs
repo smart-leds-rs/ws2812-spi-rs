@@ -38,7 +38,7 @@ where
     /// You may need to look at the datasheet and your own hal to verify this.
     ///
     /// Please ensure that the mcu is pretty fast, otherwise weird timing
-    /// issues will occurr
+    /// issues will occur
     pub fn new(spi: SPI) -> Ws2812<SPI> {
         Self { spi }
     }
