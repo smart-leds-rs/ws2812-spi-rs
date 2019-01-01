@@ -8,6 +8,8 @@ extern crate embedded_hal as hal;
 
 use hal::spi::{FullDuplex, Mode, Phase, Polarity};
 
+use smart_leds_trait::{Color, SmartLedsWrite};
+
 use nb;
 use nb::block;
 
@@ -26,9 +28,6 @@ pub struct Ws2812<SPI> {
     spi: SPI,
 }
 
-/// Color type with RGB colors
-pub type Color = (u8, u8, u8);
-
 impl<SPI, E> Ws2812<SPI>
 where
     SPI: FullDuplex<u8, Error = E>,
@@ -41,23 +40,6 @@ where
     /// issues will occur
     pub fn new(spi: SPI) -> Ws2812<SPI> {
         Self { spi }
-    }
-
-    /// Write all the items of an iterator to a ws2812 strip
-    pub fn write<'a, T>(&mut self, iterator: T) -> Result<(), E>
-    where
-        T: Iterator<Item = Color>,
-    {
-        for item in iterator {
-            self.write_byte(item.1)?;
-            self.write_byte(item.0)?;
-            self.write_byte(item.2)?;
-        }
-        for _ in 0..20 {
-            block!(self.spi.send(0))?;
-            self.spi.read().ok();
-        }
-        Ok(())
     }
 
     /// Write a single byte for ws2812 devices
@@ -88,35 +70,25 @@ where
     }
 }
 
-/// An iterator that provides brightness reduction
-pub struct Brightness<I> {
-    iter: I,
-    brightness: u8,
-}
-
-impl<'a, I> Iterator for Brightness<I>
+impl<SPI, E> SmartLedsWrite for Ws2812<SPI>
 where
-    I: Iterator<Item = Color>,
+    SPI: FullDuplex<u8, Error = E>,
 {
-    type Item = Color;
-
-    fn next(&mut self) -> Option<Color> {
-        self.iter.next().map(|a| {
-            (
-                (a.0 as u32 * self.brightness as u32 / 256) as u8,
-                (a.1 as u32 * self.brightness as u32 / 256) as u8,
-                (a.2 as u32 * self.brightness as u32 / 256) as u8,
-            )
-        })
+    type Error = E;
+    /// Write all the items of an iterator to a ws2812 strip
+    fn write<T>(&mut self, iterator: T) -> Result<(), E>
+    where
+        T: Iterator<Item = Color>,
+    {
+        for item in iterator {
+            self.write_byte(item.g)?;
+            self.write_byte(item.r)?;
+            self.write_byte(item.b)?;
+        }
+        for _ in 0..20 {
+            block!(self.spi.send(0))?;
+            self.spi.read().ok();
+        }
+        Ok(())
     }
-}
-
-/// Pass your iterator into this function to get reduced brightness
-///
-/// This is linear scaling, so it won't appear linear to human eyes
-pub fn brightness<I>(iter: I, brightness: u8) -> Brightness<I>
-where
-    I: Iterator<Item = Color>,
-{
-    Brightness { iter, brightness }
 }

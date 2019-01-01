@@ -18,8 +18,6 @@ function. You can create one by using `.iter().cloned()` on a `Color` slice.
   completly screw up the timings
 
 ## TODO
-- Find some way implement abstract effects, brightness and stuff somewhere else.
-  Maybe "embedded-leds" or something?
 - Support different spi frequencies, @jamesmunns had some suggestions for
   timings,
   https://cpldcpu.wordpress.com/2014/01/14/light_ws2812-library-v2-0-part-i-understanding-the-ws2812/

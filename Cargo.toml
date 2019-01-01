@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 nb = "0.1.1"
+smart-leds-trait = {git = "https://github.com/smart-leds-rs/smart-leds-trait"}
 
 [dependencies.embedded-hal]
 features = ["unproven"]
