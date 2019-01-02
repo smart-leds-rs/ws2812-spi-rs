@@ -1,0 +1,16 @@
+* Timings
+https://cpldcpu.wordpress.com/2014/01/14/light_ws2812-library-v2-0-part-i-understanding-the-ws2812/
+https://wp.josh.com/2014/05/13/ws2812-neopixels-are-not-so-finicky-once-you-get-to-know-them/
+
+| bit | high            |
+|-----+-----------------|
+|   0 | <500ns ^ 100ns> |
+|   1 | >625ns ! <6000  |
+
+
+The total time should be at least 1000ns at most 5000ns
+
+The reset time should be >280 us
+(https://blog.particle.io/2017/05/11/heads-up-ws2812b-neopixels-are-about-to-change/)
+
+Try to do things in between low boundaries
