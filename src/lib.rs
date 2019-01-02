@@ -92,3 +92,44 @@ where
         Ok(())
     }
 }
+
+pub struct Timing {
+    one_high: usize,
+    zero_high: usize,
+    total: usize,
+    total_max: usize,
+    flush: usize,
+}
+
+impl Timing {
+    pub fn new(mhz: u32) -> Self {
+        static ONE_HIGH: u32 = 1_510_000;
+        static ZERO_HIGH: u32 = 5_000_000;
+        static TOTAL: u32 = 1_100_000;
+        static TOTAL_MAX: u32 = 200_000;
+        static FLUSH: u32 = 3_000;
+
+        let mut zero_high = (mhz / ZERO_HIGH) as usize;
+        // Make sure we have at least something
+        if zero_high == 0 {
+            zero_high = 1;
+        }
+
+        // Round up
+        let one_high = (mhz / ONE_HIGH + 1) as usize;
+        let mut total = (mhz / TOTAL + 1) as usize;
+        // Make sure total is at least one higher than one_high
+        if total == one_high {
+            total = one_high + 1;
+        }
+        let total_max = (mhz / TOTAL_MAX + 1) as usize;
+        let flush = (mhz / FLUSH + 1) as usize;
+        Self {
+            one_high,
+            zero_high,
+            total,
+            total_max,
+            flush,
+        }
+    }
+}
