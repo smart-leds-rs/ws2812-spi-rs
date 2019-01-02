@@ -14,6 +14,8 @@ use crate::hal::stm32;
 use crate::ws2812::Ws2812;
 use cortex_m::peripheral::Peripherals;
 
+use smart_leds_trait::{Color, SmartLedsWrite};
+
 use cortex_m_rt::entry;
 
 #[entry]
@@ -44,13 +46,25 @@ fn main() -> ! {
             clocks,
         );
 
-        let mut data = [(0, 0, 0); 3];
-        let empty = [(0, 0, 0); 3];
+        let mut data: [Color; 3] = [Color::default(); 3];
+        let empty: [Color; 3] = [Color::default(); 3];
         let mut ws = Ws2812::new(spi);
         loop {
-            data[0] = (0, 0, 0x10);
-            data[1] = (0, 0x10, 0);
-            data[2] = (0x10, 0, 0);
+            data[0] = Color {
+                r: 0,
+                g: 0,
+                b: 0x10,
+            };
+            data[1] = Color {
+                r: 0,
+                g: 0x10,
+                b: 0,
+            };
+            data[2] = Color {
+                r: 0x10,
+                g: 0,
+                b: 0,
+            };
             ws.write(data.iter().cloned()).unwrap();
             delay.delay_ms(1000 as u16);
             ws.write(empty.iter().cloned()).unwrap();

@@ -14,6 +14,8 @@ use crate::hal::stm32;
 use crate::ws2812::Ws2812;
 use cortex_m::peripheral::Peripherals;
 
+use smart_leds_trait::{Color, SmartLedsWrite};
+
 use cortex_m_rt::entry;
 
 #[entry]
@@ -44,9 +46,17 @@ fn main() -> ! {
             clocks,
         );
         const MAX: usize = 8;
-        const COLOR1: (u8, u8, u8) = (0x00, 0xc3 / 5, 0x36 / 5);
-        const COLOR2: (u8, u8, u8) = (0x00, 0x24 / 5, 0xb0 / 5);
-        let mut data = [(0, 0, 0); MAX];
+        const COLOR1: Color = Color {
+            r: 0x00,
+            g: 0xc3 / 5,
+            b: 0x36 / 5,
+        };
+        const COLOR2: Color = Color {
+            r: 0x00,
+            g: 0x24 / 5,
+            b: 0xb0 / 5,
+        };
+        let mut data = [(0, 0, 0).into(); MAX];
         let mut main = 0;
         let mut ws = Ws2812::new(spi);
         let mut up = true;
@@ -54,20 +64,21 @@ fn main() -> ! {
             for i in 0..MAX {
                 let distance = (main as i32 - i as i32).abs() as u8;
                 let c1 = (
-                    COLOR1.0 as u32 * (MAX as u32 - distance as u32) / MAX as u32,
-                    COLOR1.1 as u32 * (MAX as u32 - distance as u32) / MAX as u32,
-                    COLOR1.2 as u32 * (MAX as u32 - distance as u32) / MAX as u32,
+                    COLOR1.r as u32 * (MAX as u32 - distance as u32) / MAX as u32,
+                    COLOR1.g as u32 * (MAX as u32 - distance as u32) / MAX as u32,
+                    COLOR1.b as u32 * (MAX as u32 - distance as u32) / MAX as u32,
                 );
                 let c2 = (
-                    COLOR2.0 as u32 * distance as u32 / MAX as u32,
-                    COLOR2.1 as u32 * distance as u32 / MAX as u32,
-                    COLOR2.2 as u32 * distance as u32 / MAX as u32,
+                    COLOR2.r as u32 * distance as u32 / MAX as u32,
+                    COLOR2.g as u32 * distance as u32 / MAX as u32,
+                    COLOR2.b as u32 * distance as u32 / MAX as u32,
                 );
                 let ct = (
                     (c1.0 + c2.0) as u8,
                     (c1.1 + c2.1) as u8,
                     (c1.2 + c2.2) as u8,
-                );
+                )
+                    .into();
                 data[i] = ct;
             }
             if up {
