@@ -11,7 +11,7 @@ use crate::hal::delay::Delay;
 use crate::hal::prelude::*;
 use crate::hal::spi::Spi;
 use crate::hal::stm32;
-use crate::ws2812::Ws2812;
+use crate::ws2812::{Timing, Ws2812};
 use cortex_m::peripheral::Peripherals;
 
 use smart_leds_trait::{Color, SmartLedsWrite};
@@ -48,7 +48,7 @@ fn main() -> ! {
 
         let mut data: [Color; 3] = [Color::default(); 3];
         let empty: [Color; 3] = [Color::default(); 3];
-        let mut ws = Ws2812::new(spi);
+        let mut ws = Ws2812::new(spi, Timing::new(3_000_000).unwrap());
         loop {
             data[0] = Color {
                 r: 0,
