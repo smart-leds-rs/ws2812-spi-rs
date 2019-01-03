@@ -26,6 +26,7 @@ pub const MODE: Mode = Mode {
 
 pub struct Ws2812<SPI> {
     spi: SPI,
+    timing: Timing,
 }
 
 impl<SPI, E> Ws2812<SPI>
@@ -38,34 +39,46 @@ where
     ///
     /// Please ensure that the mcu is pretty fast, otherwise weird timing
     /// issues will occur
-    pub fn new(spi: SPI) -> Ws2812<SPI> {
-        Self { spi }
+    pub fn new(spi: SPI, timing: Timing) -> Ws2812<SPI> {
+        Self { spi, timing }
+    }
+
+    /// Stash bits in `byte`, until it's full, then write it out
+    fn stash_byte(&mut self, bit: bool, byte: &mut u8, count: &mut u8) -> Result<(), E> {
+        *byte = (*byte << 1) | bit as u8;
+        *count += 1;
+        if *count == 8 {
+            self.spi.read().ok();
+            block!(self.spi.send(*byte))?;
+            *count = 0;
+        }
+        Ok(())
     }
 
     /// Write a single byte for ws2812 devices
-    fn write_byte(&mut self, mut data: u8) -> Result<(), E> {
-        let mut serial_bits: u32 = 0;
-        for _ in 0..3 {
-            let bit = data & 0x80;
-            let pattern = if bit == 0x80 { 0b110 } else { 0b100 };
-            serial_bits = pattern | (serial_bits << 3);
-            data <<= 1;
+    fn write_color(&mut self, data: Color) -> Result<(), E> {
+        let mut serial_bits = (data.g as u32) << 16 | (data.r as u32) << 8 | (data.b as u32) << 0;
+        let mut serial_data = 0;
+        let mut serial_count = 0;
+        for _ in 0..24 {
+            let one_bits = if (serial_bits & 0x00800000) != 0 {
+                self.timing.one_high
+            } else {
+                self.timing.zero_high
+            };
+            let zero_bits = self.timing.total - one_bits;
+            for _ in 0..one_bits {
+                self.stash_byte(true, &mut serial_data, &mut serial_count)?;
+            }
+            for _ in 0..zero_bits {
+                self.stash_byte(false, &mut serial_data, &mut serial_count)?;
+            }
+            serial_bits <<= 1;
         }
-        block!(self.spi.send((serial_bits >> 1) as u8))?;
-        // Split this up to have a bit more lenient timing
-        for _ in 3..8 {
-            let bit = data & 0x80;
-            let pattern = if bit == 0x80 { 0b110 } else { 0b100 };
-            serial_bits = pattern | (serial_bits << 3);
-            data <<= 1;
+        // Now fill the last byte up
+        while serial_count != 0 {
+            self.stash_byte(false, &mut serial_data, &mut serial_count)?;
         }
-        // Some implementations (stm32f0xx-hal) want a matching read
-        // We don't want to block so we just hope it's ok this way
-        self.spi.read().ok();
-        block!(self.spi.send((serial_bits >> 8) as u8))?;
-        self.spi.read().ok();
-        block!(self.spi.send(serial_bits as u8))?;
-        self.spi.read().ok();
         Ok(())
     }
 }
@@ -81,11 +94,9 @@ where
         T: Iterator<Item = Color>,
     {
         for item in iterator {
-            self.write_byte(item.g)?;
-            self.write_byte(item.r)?;
-            self.write_byte(item.b)?;
+            self.write_color(item)?;
         }
-        for _ in 0..20 {
+        for _ in 0..(self.timing.flush) / 8 + 1 {
             block!(self.spi.send(0))?;
             self.spi.read().ok();
         }
@@ -102,7 +113,10 @@ pub struct Timing {
 }
 
 impl Timing {
-    pub fn new(mhz: u32) -> Self {
+    pub fn new(mhz: u32) -> Option<Self> {
+        if mhz < 2_000_000 {
+            return None;
+        }
         static ONE_HIGH: u32 = 1_510_000;
         static ZERO_HIGH: u32 = 5_000_000;
         static TOTAL: u32 = 1_100_000;
@@ -124,12 +138,12 @@ impl Timing {
         }
         let total_max = (mhz / TOTAL_MAX + 1) as usize;
         let flush = (mhz / FLUSH + 1) as usize;
-        Self {
+        Some(Self {
             one_high,
             zero_high,
             total,
             total_max,
             flush,
-        }
+        })
     }
 }
