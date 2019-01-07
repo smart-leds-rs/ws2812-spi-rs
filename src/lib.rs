@@ -44,32 +44,28 @@ where
     }
 
     /// Write a single byte for ws2812 devices
-    fn write_color(&mut self, data: Color) -> Result<(), E> {
-        let mut serial_bits = (data.g as u32) << 16 | (data.r as u32) << 8 | (data.b as u32) << 0;
-        let mut serial_data: u32 = 0;
-        let mut serial_count = 0;
-        for _ in 0..24 {
-            let pattern = if (serial_bits & 0x00800000) != 0 {
+    fn write_byte(
+        &mut self,
+        mut data: u8,
+        serial_data: &mut u32,
+        serial_count: &mut u8,
+    ) -> Result<(), E> {
+        for _ in 0..8 {
+            let pattern = if (data & 0x80) != 0 {
                 self.timing.one_pattern
             } else {
                 self.timing.zero_pattern
             };
-            serial_count += self.timing.len;
-            serial_data |= pattern << (32 - serial_count);
-            while serial_count > 7 {
-                let data = (serial_data >> 24) as u8;
+            *serial_count += self.timing.len;
+            *serial_data |= pattern << (32 - *serial_count);
+            while *serial_count > 7 {
+                let data = (*serial_data >> 24) as u8;
                 self.spi.read().ok();
                 block!(self.spi.send(data))?;
-                serial_data <<= 8;
-                serial_count -= 8;
+                *serial_data <<= 8;
+                *serial_count -= 8;
             }
-            serial_bits <<= 1;
-        }
-        if serial_count != 0 {
-            serial_data <<= 8 - serial_count;
-            let data = (serial_data >> 24) as u8;
-            self.spi.read().ok();
-            block!(self.spi.send(data))?;
+            data <<= 1;
         }
         Ok(())
     }
@@ -86,7 +82,17 @@ where
         T: Iterator<Item = Color>,
     {
         for item in iterator {
-            self.write_color(item)?;
+            let mut serial_data: u32 = 0;
+            let mut serial_count = 0;
+            self.write_byte(item.g, &mut serial_data, &mut serial_count)?;
+            self.write_byte(item.r, &mut serial_data, &mut serial_count)?;
+            self.write_byte(item.b, &mut serial_data, &mut serial_count)?;
+            if serial_count != 0 {
+                serial_data <<= 8 - serial_count;
+                let data = (serial_data >> 24) as u8;
+                self.spi.read().ok();
+                block!(self.spi.send(data))?;
+            }
         }
         for _ in 0..(self.timing.flush_bytes) {
             block!(self.spi.send(0))?;
