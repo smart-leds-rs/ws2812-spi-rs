@@ -6,6 +6,8 @@
 
 extern crate embedded_hal as hal;
 
+pub mod prerendered;
+
 use hal::spi::{FullDuplex, Mode, Phase, Polarity};
 
 use smart_leds_trait::{Color, SmartLedsWrite};
