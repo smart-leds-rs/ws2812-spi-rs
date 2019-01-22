@@ -17,9 +17,7 @@ use nb::block;
 /// SPI mode that is needed for this crate
 ///
 /// Provided for convenience
-///
-/// If you have strange issues, like the first led always running, you should
-/// verify that the spi is idle low
+/// Doesn't really matter
 pub const MODE: Mode = Mode {
     polarity: Polarity::IdleLow,
     phase: Phase::CaptureOnFirstTransition,

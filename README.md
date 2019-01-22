@@ -13,10 +13,13 @@ function. You can create one by using `.iter().cloned()` on a `Color` slice.
   may need to look at your hal implementation and at your data sheet. If you use 
   the prerendered version, you should also verify that the spi frequency matches
 - If the first one is always on, no matter what data you put in, your spi is
-  probably not set to idle low. Some spi hals don't support this properly, so
-  check with a multi meter that it's low if theres no write ongoing.
+  probably not setting the mosi line to low on idle (You can check with a multimeter).
   It may also be a timing issue with the first bit being sent, this is the case
-  on the stm32f030 with 2MHz (although using it with 2MHz is really not recommended)
+  on the stm32f030 with 2MHz (although using it with 2MHz is really not
+  recommended).
+
+  You could try using the `mosi_idle_high` feature, it might help.
+
 - Is your device fast enough? Is your iterator fast enough? Taking too long may
   completly screw up the timings
 - Is everything white? This may stem from an spi peripheral that's too slow or
