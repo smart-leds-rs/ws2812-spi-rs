@@ -70,6 +70,13 @@ where
         self.spi.read().ok();
         Ok(())
     }
+    fn flush(&mut self) -> Result<(), E> {
+        for _ in 0..20 {
+            block!(self.spi.send(0))?;
+            self.spi.read().ok();
+        }
+        Ok(())
+    }
 }
 
 impl<SPI, E> SmartLedsWrite for Ws2812<SPI>
@@ -82,15 +89,16 @@ where
     where
         T: Iterator<Item = Color>,
     {
+        if cfg!(mosi_idle_high) {
+            self.flush()?;
+        }
+
         for item in iterator {
             self.write_byte(item.g)?;
             self.write_byte(item.r)?;
             self.write_byte(item.b)?;
         }
-        for _ in 0..20 {
-            block!(self.spi.send(0))?;
-            self.spi.read().ok();
-        }
+        self.flush()?;
         Ok(())
     }
 }

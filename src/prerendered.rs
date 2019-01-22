@@ -77,6 +77,13 @@ where
         }
         Ok(())
     }
+    fn flush(&mut self) -> Result<(), E> {
+        for _ in 0..self.timing.flush_bytes {
+            block!(self.spi.send(0))?;
+            self.spi.read().ok();
+        }
+        Ok(())
+    }
 }
 
 impl<SPI, E> SmartLedsWrite for Ws2812<'_, SPI>
@@ -89,6 +96,10 @@ where
     where
         T: Iterator<Item = Color>,
     {
+        if cfg!(mosi_idle_high) {
+            self.flush()?;
+        }
+
         let mut serial_data: u32 = 0;
         let mut serial_count = 0;
         let mut index = 0;
@@ -101,10 +112,7 @@ where
             block!(self.spi.send(*d))?;
             self.spi.read().ok();
         }
-        for _ in 0..self.timing.flush_bytes {
-            block!(self.spi.send(0))?;
-            self.spi.read().ok();
-        }
+        self.flush()?;
         Ok(())
     }
 }
