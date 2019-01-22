@@ -89,7 +89,7 @@ where
     where
         T: Iterator<Item = Color>,
     {
-        if cfg!(mosi_idle_high) {
+        if cfg!(feature = "mosi_idle_high") {
             self.flush()?;
         }
 
