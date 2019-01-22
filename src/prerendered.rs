@@ -14,15 +14,6 @@ use smart_leds_trait::{Color, SmartLedsWrite};
 use nb;
 use nb::block;
 
-/// SPI mode that is needed for this crate
-///
-/// Provided for convenience
-/// Doesn't really matter
-pub const MODE: Mode = Mode {
-    polarity: Polarity::IdleLow,
-    phase: Phase::CaptureOnFirstTransition,
-};
-
 pub struct Ws2812<'a, SPI> {
     spi: SPI,
     timing: Timing,

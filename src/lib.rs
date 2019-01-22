@@ -15,7 +15,7 @@ use smart_leds_trait::{Color, SmartLedsWrite};
 use nb;
 use nb::block;
 
-/// SPI mode that is needed for this crate
+/// SPI mode that can be used for this crate
 ///
 /// Provided for convenience
 /// Doesn't really matter
