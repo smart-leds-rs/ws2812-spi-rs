@@ -1,5 +1,3 @@
-//! # Use ws2812 leds via spi
-//!
 //! This prerenders the data, so that no calculations have to be performed while sending the data.
 //!
 //! This approach minimizes timing issues, at the cost of much higher ram usage.
@@ -7,7 +5,7 @@
 
 extern crate embedded_hal as hal;
 
-use hal::spi::{FullDuplex, Mode, Phase, Polarity};
+use hal::spi::FullDuplex;
 
 use smart_leds_trait::{Color, SmartLedsWrite};
 
@@ -27,9 +25,6 @@ where
     /// The SPI bus should run exactly with the provided frequency
     ///
     /// You may need to look at the datasheet and your own hal to verify this.
-    ///
-    /// Please ensure that the mcu is pretty fast (around 48 MHz worked for me),
-    /// otherwise weird timing issues will occur
     ///
     /// You need to provide a buffer `data`, whoose length is at least 3 the
     /// length of the led strip.

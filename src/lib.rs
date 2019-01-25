@@ -1,6 +1,11 @@
 //! # Use ws2812 leds via spi
 //!
+//! - For usage with `smart-leds`
+//! - Implements the `SmartLedsWrite` trait
 //!
+//! Needs a type implementing the `spi::FullDuplex` trait.
+//!
+//! The spi peripheral should run at 3MHz
 
 #![no_std]
 
@@ -68,6 +73,7 @@ where
         self.spi.read().ok();
         Ok(())
     }
+
     fn flush(&mut self) -> Result<(), E> {
         for _ in 0..20 {
             block!(self.spi.send(0))?;
