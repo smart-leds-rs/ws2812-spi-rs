@@ -7,7 +7,7 @@ extern crate embedded_hal as hal;
 
 use hal::spi::FullDuplex;
 
-use smart_leds_trait::{Color, SmartLedsWrite};
+use smart_leds_trait::{SmartLedsWrite, RGB8};
 
 use nb;
 use nb::block;
@@ -75,10 +75,12 @@ where
     SPI: FullDuplex<u8, Error = E>,
 {
     type Error = E;
+    type Color = RGB8;
     /// Write all the items of an iterator to a ws2812 strip
-    fn write<T>(&mut self, iterator: T) -> Result<(), E>
+    fn write<T, I>(&mut self, iterator: T) -> Result<(), Self::Error>
     where
-        T: Iterator<Item = Color>,
+        T: Iterator<Item = I>,
+        I: Into<Self::Color>,
     {
         if cfg!(feature = "mosi_idle_high") {
             self.flush()?;
@@ -88,6 +90,7 @@ where
         let mut serial_count = 0;
         let mut index = 0;
         for item in iterator {
+            let item = item.into();
             self.write_byte(item.g, &mut serial_data, &mut serial_count, &mut index)?;
             self.write_byte(item.r, &mut serial_data, &mut serial_count, &mut index)?;
             self.write_byte(item.b, &mut serial_data, &mut serial_count, &mut index)?;

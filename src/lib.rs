@@ -15,7 +15,7 @@ pub mod prerendered;
 
 use hal::spi::{FullDuplex, Mode, Phase, Polarity};
 
-use smart_leds_trait::{Color, SmartLedsWrite};
+use smart_leds_trait::{SmartLedsWrite, RGB8};
 
 use nb;
 use nb::block;
@@ -88,16 +88,19 @@ where
     SPI: FullDuplex<u8, Error = E>,
 {
     type Error = E;
+    type Color = RGB8;
     /// Write all the items of an iterator to a ws2812 strip
-    fn write<T>(&mut self, iterator: T) -> Result<(), E>
+    fn write<T, I>(&mut self, iterator: T) -> Result<(), E>
     where
-        T: Iterator<Item = Color>,
+        T: Iterator<Item = I>,
+        I: Into<Self::Color>,
     {
         if cfg!(feature = "mosi_idle_high") {
             self.flush()?;
         }
 
         for item in iterator {
+            let item = item.into();
             self.write_byte(item.g)?;
             self.write_byte(item.r)?;
             self.write_byte(item.b)?;

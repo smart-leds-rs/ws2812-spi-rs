@@ -1,6 +1,6 @@
 [package]
 name = "ws2812-spi"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["David Sawatzke <david-sawatzke@users.noreply.github.com>"]
 edition = "2018"
 categories = [
@@ -16,7 +16,7 @@ repository = "https://github.com/smart-leds-rs/ws2812-spi-rs"
 
 [dependencies]
 nb = "0.1.1"
-smart-leds-trait = "0.1"
+smart-leds-trait = "0.2"
 embedded-hal = "0.2.1"
 
 [features]
