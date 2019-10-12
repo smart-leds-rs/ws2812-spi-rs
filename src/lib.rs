@@ -5,7 +5,8 @@
 //!
 //! Needs a type implementing the `spi::FullDuplex` trait.
 //!
-//! The spi peripheral should run at 3MHz
+//! The spi peripheral should run at 3MHz for WS2812 LEDs, or 4MHz for SK6812w
+//! LEDs.
 
 #![no_std]
 
@@ -15,7 +16,7 @@ pub mod prerendered;
 
 use hal::spi::{FullDuplex, Mode, Phase, Polarity};
 
-use smart_leds_trait::{SmartLedsWrite, RGB8};
+use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
 
 use nb;
 use nb::block;
@@ -29,11 +30,12 @@ pub const MODE: Mode = Mode {
     phase: Phase::CaptureOnFirstTransition,
 };
 
-pub struct Ws2812<SPI> {
+/// The internal communication layer implementation.
+struct CommLayer<SPI> {
     spi: SPI,
 }
 
-impl<SPI, E> Ws2812<SPI>
+impl<SPI, E> CommLayer<SPI>
 where
     SPI: FullDuplex<u8, Error = E>,
 {
@@ -43,7 +45,7 @@ where
     ///
     /// Please ensure that the mcu is pretty fast, otherwise weird timing
     /// issues will occur
-    pub fn new(spi: SPI) -> Ws2812<SPI> {
+    pub fn new(spi: SPI) -> Self {
         Self { spi }
     }
 
@@ -83,6 +85,72 @@ where
     }
 }
 
+/// Driver for strings of Ws2812 LEDs. This driver expects the SPI bus to be
+/// running at ~3MHz.
+pub struct Ws2812<SPI> {
+    comms: CommLayer<SPI>,
+}
+
+impl<SPI, E> Ws2812<SPI>
+where
+    SPI: FullDuplex<u8, Error = E>,
+{
+    /// Create a smart led strip driver from the provided SPI peripheral. The
+    /// peripheral should be running at 3 MHz.
+    pub fn new(spi: SPI) -> Self {
+        Self {
+            comms: CommLayer::new(spi),
+        }
+    }
+}
+
+/// Driver for strings of SK6812-W LEDs. This driver expects the SPI bus to be
+/// running at ~4MHz.
+pub struct Sk6812w<SPI> {
+    comms: CommLayer<SPI>,
+}
+
+impl<SPI, E> Sk6812w<SPI>
+where
+    SPI: FullDuplex<u8, Error = E>,
+{
+    /// Create a smart led strip driver from the provided SPI peripheral. The
+    /// peripheral should be running at 4 MHz.
+    pub fn new(spi: SPI) -> Self {
+        Self {
+            comms: CommLayer::new(spi),
+        }
+    }
+}
+
+impl<SPI, E> SmartLedsWrite for Sk6812w<SPI>
+where
+    SPI: FullDuplex<u8, Error = E>,
+{
+    type Error = E;
+    type Color = RGBW<u8, u8>;
+    /// Write all the items of an iterator to a ws2812 strip
+    fn write<T, I>(&mut self, iterator: T) -> Result<(), E>
+    where
+        T: Iterator<Item = I>,
+        I: Into<Self::Color>,
+    {
+        if cfg!(feature = "mosi_idle_high") {
+            self.comms.flush()?;
+        }
+
+        for item in iterator {
+            let item = item.into();
+            self.comms.write_byte(item.g)?;
+            self.comms.write_byte(item.r)?;
+            self.comms.write_byte(item.b)?;
+            self.comms.write_byte(item.a.0)?;
+        }
+        self.comms.flush()?;
+        Ok(())
+    }
+}
+
 impl<SPI, E> SmartLedsWrite for Ws2812<SPI>
 where
     SPI: FullDuplex<u8, Error = E>,
@@ -96,16 +164,16 @@ where
         I: Into<Self::Color>,
     {
         if cfg!(feature = "mosi_idle_high") {
-            self.flush()?;
+            self.comms.flush()?;
         }
 
         for item in iterator {
             let item = item.into();
-            self.write_byte(item.g)?;
-            self.write_byte(item.r)?;
-            self.write_byte(item.b)?;
+            self.comms.write_byte(item.g)?;
+            self.comms.write_byte(item.r)?;
+            self.comms.write_byte(item.b)?;
         }
-        self.flush()?;
+        self.comms.flush()?;
         Ok(())
     }
 }
