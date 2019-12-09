@@ -31,13 +31,13 @@ It provides two variants:
   You could try using the `mosi_idle_high` feature, it might help.
 
 - Is your device fast enough? Is your iterator fast enough? Taking too long may
-  completly screw up the timings for the normal version. Try the prerendered variant.
+  completely screw up the timings for the normal version. Try the prerendered variant.
 
 - Is everything white? This may stem from an spi peripheral that's too slow or
   one that takes too much time in-between bytes
 
 When opening an issue about wrong/strange data, it would help if you include
-your code (of course) and a capture of MOSI & SCK from an oscilloscop/a logic 
+your code (of course) and a capture of MOSI & SCK from an oscilloscope/a logic
 analyzer.
 
 ## License
