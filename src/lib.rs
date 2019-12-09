@@ -5,7 +5,9 @@
 //!
 //! Needs a type implementing the `spi::FullDuplex` trait.
 //!
-//! The spi peripheral should run at 3MHz
+//! The spi peripheral should run at 2MHz to 3.8 MHz
+
+// Timings from https://cpldcpu.files.wordpress.com/2014/01/ws2812_timing_table.png
 
 #![no_std]
 
@@ -37,7 +39,7 @@ impl<SPI, E> Ws2812<SPI>
 where
     SPI: FullDuplex<u8, Error = E>,
 {
-    /// The SPI bus should run with 3 Mhz, otherwise this won't work.
+    /// The SPI bus should run within 2 MHz to 3.8 MHz
     ///
     /// You may need to look at the datasheet and your own hal to verify this.
     ///
@@ -49,28 +51,18 @@ where
 
     /// Write a single byte for ws2812 devices
     fn write_byte(&mut self, mut data: u8) -> Result<(), E> {
-        let mut serial_bits: u32 = 0;
+        // Send two bits in one spi byte. High time first, then the low time
+        // The maximum for T0H is 500ns, the minimum for one bit 1063 ns.
+        // These result in the upper and lower spi frequency limits
+        let patterns = [0b1000_1000, 0b1000_1110, 0b11101000, 0b11101110];
         for _ in 0..3 {
-            let bit = data & 0x80;
-            let pattern = if bit == 0x80 { 0b110 } else { 0b100 };
-            serial_bits = pattern | (serial_bits << 3);
-            data <<= 1;
+            let bits = (data & 0b1100_0000) >> 6;
+            // Some implementations (stm32f0xx-hal) want a matching read
+            // We don't want to block so we just hope it's ok this way
+            self.spi.read().ok();
+            block!(self.spi.send(patterns[bits as usize]))?;
+            data <<= 2;
         }
-        block!(self.spi.send((serial_bits >> 1) as u8))?;
-        // Split this up to have a bit more lenient timing
-        for _ in 3..8 {
-            let bit = data & 0x80;
-            let pattern = if bit == 0x80 { 0b110 } else { 0b100 };
-            serial_bits = pattern | (serial_bits << 3);
-            data <<= 1;
-        }
-        // Some implementations (stm32f0xx-hal) want a matching read
-        // We don't want to block so we just hope it's ok this way
-        self.spi.read().ok();
-        block!(self.spi.send((serial_bits >> 8) as u8))?;
-        self.spi.read().ok();
-        block!(self.spi.send(serial_bits as u8))?;
-        self.spi.read().ok();
         Ok(())
     }
 
