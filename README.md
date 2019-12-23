@@ -3,12 +3,12 @@
 For usage with the [smart-leds](https://github.com/smart-leds-rs/smart-leds)
 crate.
 
-An embedded-hal driver for ws2812 leds using spi as the timing provider. 
+An embedded-hal driver for ws2812 leds using spi as the timing provider.
 
-It provides two variants: 
+It provides two variants:
 - The normal usage
-  
-  Your spi peripheral has to run at 3MHz & the SPI data is created on-the-fly. 
+
+  Your spi peripheral has to run betwee 2MHz and 3.8MHz & the SPI data is created on-the-fly.
   This means that your core has to be reasonably fast (~48 MHz).
 - Prerendered
 
@@ -18,15 +18,15 @@ It provides two variants:
   spi data.
 
 ## It doesn't work!!!
-- Do you use the normal variant? Does your spi run at 3MHz? Lots if embeded
-  devices don't support this, so you may need to look at your hal implementation
-  and at your data sheet. If you use the prerendered version, you should also
-  verify that the spi frequency matches
+- Do you use the normal variant? Does your spi run at the right frequency?
+
+  Lots of embeded devices don't support this, so you may need to look at your
+  hal implementation and at your data sheet. If you use the prerendered version,
+  you should also verify that the spi frequency matches the requirements.
 - If the first led is always on, no matter what data you put in, your spi is
   probably not setting the mosi line to low on idle (You can check with a multimeter).
   It may also be a timing issue with the first bit being sent, this is the case
-  on the stm32f030 with 2MHz (although using it with 2MHz is really not
-  recommended).
+  on the stm32f030 with 2MHz.
 
   You could try using the `mosi_idle_high` feature, it might help.
 
