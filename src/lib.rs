@@ -55,7 +55,7 @@ where
         // The maximum for T0H is 500ns, the minimum for one bit 1063 ns.
         // These result in the upper and lower spi frequency limits
         let patterns = [0b1000_1000, 0b1000_1110, 0b11101000, 0b11101110];
-        for _ in 0..3 {
+        for _ in 0..4 {
             let bits = (data & 0b1100_0000) >> 6;
             block!({
                 // Some implementations (stm32f0xx-hal) want a matching read
