@@ -7,7 +7,8 @@
 //!
 //! The spi peripheral should run at 2MHz to 3.8 MHz
 
-// Timings from https://cpldcpu.files.wordpress.com/2014/01/ws2812_timing_table.png
+// Timings for ws2812 from https://cpldcpu.files.wordpress.com/2014/01/ws2812_timing_table.png
+// Timings for sk6812 from https://cpldcpu.wordpress.com/2016/03/09/the-sk6812-another-intelligent-rgb-led/
 
 #![no_std]
 
@@ -69,12 +70,14 @@ where
 {
     /// Use sk6812w devices via spi
     ///
-    /// The SPI bus should run within 2 MHz to 3.8 MHz
+    /// The SPI bus should run within 2.3 MHz to 3.8 MHz at least.
     ///
     /// You may need to look at the datasheet and your own hal to verify this.
     ///
     /// Please ensure that the mcu is pretty fast, otherwise weird timing
     /// issues will occur
+    // The spi frequencies are just the limits, the available timing data isn't
+    // complete
     pub fn new_sk6812w(spi: SPI) -> Self {
         Self {
             spi,
