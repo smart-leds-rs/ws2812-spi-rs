@@ -57,10 +57,12 @@ where
         let patterns = [0b1000_1000, 0b1000_1110, 0b11101000, 0b11101110];
         for _ in 0..3 {
             let bits = (data & 0b1100_0000) >> 6;
-            // Some implementations (stm32f0xx-hal) want a matching read
-            // We don't want to block so we just hope it's ok this way
-            self.spi.read().ok();
-            block!(self.spi.send(patterns[bits as usize]))?;
+            block!({
+                // Some implementations (stm32f0xx-hal) want a matching read
+                // We don't want to block so we just hope it's ok this way
+                self.spi.read().ok();
+                self.spi.send(patterns[bits as usize])
+            })?;
             data <<= 2;
         }
         Ok(())
