@@ -17,7 +17,9 @@ pub mod prerendered;
 
 use hal::spi::{FullDuplex, Mode, Phase, Polarity};
 
-use smart_leds_trait::{SmartLedsWrite, RGB8};
+use core::marker::PhantomData;
+
+use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
 
 use nb;
 use nb::block;
@@ -31,24 +33,60 @@ pub const MODE: Mode = Mode {
     phase: Phase::CaptureOnFirstTransition,
 };
 
-pub struct Ws2812<SPI> {
+pub mod devices {
+    pub struct Ws2812;
+    pub struct Sk6812w;
+}
+
+pub struct Ws2812<SPI, DEVICE = devices::Ws2812> {
     spi: SPI,
+    device: PhantomData<DEVICE>,
 }
 
 impl<SPI, E> Ws2812<SPI>
 where
     SPI: FullDuplex<u8, Error = E>,
 {
+    /// Use ws2812 devices via spi
+    ///
     /// The SPI bus should run within 2 MHz to 3.8 MHz
     ///
     /// You may need to look at the datasheet and your own hal to verify this.
     ///
     /// Please ensure that the mcu is pretty fast, otherwise weird timing
     /// issues will occur
-    pub fn new(spi: SPI) -> Ws2812<SPI> {
-        Self { spi }
+    pub fn new(spi: SPI) -> Self {
+        Self {
+            spi,
+            device: PhantomData {},
+        }
     }
+}
 
+impl<SPI, E> Ws2812<SPI, devices::Sk6812w>
+where
+    SPI: FullDuplex<u8, Error = E>,
+{
+    /// Use sk6812w devices via spi
+    ///
+    /// The SPI bus should run within 2 MHz to 3.8 MHz
+    ///
+    /// You may need to look at the datasheet and your own hal to verify this.
+    ///
+    /// Please ensure that the mcu is pretty fast, otherwise weird timing
+    /// issues will occur
+    pub fn new_sk6812w(spi: SPI) -> Self {
+        Self {
+            spi,
+            device: PhantomData {},
+        }
+    }
+}
+
+impl<SPI, D, E> Ws2812<SPI, D>
+where
+    SPI: FullDuplex<u8, Error = E>,
+{
     /// Write a single byte for ws2812 devices
     fn write_byte(&mut self, mut data: u8) -> Result<(), E> {
         // Send two bits in one spi byte. High time first, then the low time
@@ -98,6 +136,34 @@ where
             self.write_byte(item.g)?;
             self.write_byte(item.r)?;
             self.write_byte(item.b)?;
+        }
+        self.flush()?;
+        Ok(())
+    }
+}
+
+impl<SPI, E> SmartLedsWrite for Ws2812<SPI, devices::Sk6812w>
+where
+    SPI: FullDuplex<u8, Error = E>,
+{
+    type Error = E;
+    type Color = RGBW<u8, u8>;
+    /// Write all the items of an iterator to a ws2812 strip
+    fn write<T, I>(&mut self, iterator: T) -> Result<(), E>
+    where
+        T: Iterator<Item = I>,
+        I: Into<Self::Color>,
+    {
+        if cfg!(feature = "mosi_idle_high") {
+            self.flush()?;
+        }
+
+        for item in iterator {
+            let item = item.into();
+            self.write_byte(item.g)?;
+            self.write_byte(item.r)?;
+            self.write_byte(item.b)?;
+            self.write_byte(item.a.0)?;
         }
         self.flush()?;
         Ok(())
