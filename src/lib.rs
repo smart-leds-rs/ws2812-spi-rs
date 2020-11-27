@@ -101,8 +101,8 @@ where
             block!({
                 // Some implementations (stm32f0xx-hal) want a matching read
                 // We don't want to block so we just hope it's ok this way
-                self.spi.read().ok();
-                self.spi.send(patterns[bits as usize])
+                self.spi.send(patterns[bits as usize]);
+                self.spi.read()
             })?;
             data <<= 2;
         }
@@ -111,8 +111,10 @@ where
 
     fn flush(&mut self) -> Result<(), E> {
         for _ in 0..20 {
-            block!(self.spi.send(0))?;
-            self.spi.read().ok();
+            block!({
+                self.spi.send(0);
+                self.spi.read()
+            })?;
         }
         Ok(())
     }
