@@ -98,12 +98,8 @@ where
         let patterns = [0b1000_1000, 0b1000_1110, 0b11101000, 0b11101110];
         for _ in 0..4 {
             let bits = (data & 0b1100_0000) >> 6;
-            block!({
-                // Some implementations (stm32f0xx-hal) want a matching read
-                // We don't want to block so we just hope it's ok this way
-                self.spi.read().ok();
-                self.spi.send(patterns[bits as usize])
-            })?;
+            block!(self.spi.send(patterns[bits as usize]))?;
+            block!(self.spi.read()).ok();
             data <<= 2;
         }
         Ok(())
@@ -112,7 +108,7 @@ where
     fn flush(&mut self) -> Result<(), E> {
         for _ in 0..20 {
             block!(self.spi.send(0))?;
-            self.spi.read().ok();
+            block!(self.spi.read()).ok();
         }
         Ok(())
     }
@@ -130,6 +126,10 @@ where
         T: Iterator<Item = I>,
         I: Into<Self::Color>,
     {
+        // We introduce an offset in the fifo here, so there's always one byte in transit
+        // Some MCUs (like the stm32f1) only a one byte fifo, which would result
+        // in overrun error if two bytes need to be stored
+        block!(self.spi.send(0))?;
         if cfg!(feature = "mosi_idle_high") {
             self.flush()?;
         }
@@ -141,6 +141,8 @@ where
             self.write_byte(item.b)?;
         }
         self.flush()?;
+        // Now, resolve the offset we introduced at the beginning
+        block!(self.spi.read())?;
         Ok(())
     }
 }
@@ -157,6 +159,10 @@ where
         T: Iterator<Item = I>,
         I: Into<Self::Color>,
     {
+        // We introduce an offset in the fifo here, so there's always one byte in transit
+        // Some MCUs (like the stm32f1) only a one byte fifo, which would result
+        // in overrun error if two bytes need to be stored
+        block!(self.spi.send(0))?;
         if cfg!(feature = "mosi_idle_high") {
             self.flush()?;
         }
@@ -169,6 +175,8 @@ where
             self.write_byte(item.a.0)?;
         }
         self.flush()?;
+        // Now, resolve the offset we introduced at the beginning
+        block!(self.spi.read())?;
         Ok(())
     }
 }
