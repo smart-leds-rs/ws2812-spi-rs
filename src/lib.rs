@@ -12,7 +12,7 @@
 
 #![no_std]
 
-extern crate embedded_hal as hal;
+use embedded_hal as hal;
 
 pub mod prerendered;
 
