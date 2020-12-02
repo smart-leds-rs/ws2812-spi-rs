@@ -5,14 +5,16 @@ crate.
 
 An embedded-hal driver for ws2812 leds using spi as the timing provider.
 
+![rainbow on stm32f0](./stm32f0_ws2812_spi_rainbow.gif)
+
 It provides two variants:
 - The normal usage
 
   Your spi peripheral has to run betwee 2MHz and 3.8MHz & the SPI data is created on-the-fly.
-  This means that your core has to be reasonably fast (~48 MHz).
+  This means that your core has to be reasonably fast (48 MHz should suffice).
 - Prerendered
 
-  If your core is too slow or your SPI peripheral has a different frequency, you
+  If your core is too slow (for example, the AVR family), you
   may want to use this. It creates all the data beforehand & then sends it. This
   means that you have to provide a data array that's large enough for all the
   spi data.
@@ -20,9 +22,12 @@ It provides two variants:
 ## It doesn't work!!!
 - Do you use the normal variant? Does your spi run at the right frequency?
 
-  Lots of embeded devices don't support this, so you may need to look at your
-  hal implementation and at your data sheet. If you use the prerendered version,
-  you should also verify that the spi frequency matches the requirements.
+  Your CPU might be too slow, but this can also depend on the HAL implementation
+  & your Iterator chain. Using the `prerendered` variant might help. For many
+  SPI peripherals, the clock generations is way less sophisticated than e.g.
+  the UART peripheral. You should verify it runs at an acceptable frequency, by
+  either studying the datasheet & the hal code or using a logic analyzer. An
+  fx2 based one, commonly available under $10 works great for this.
 - If the first led is always on, no matter what data you put in, your spi is
   probably not setting the mosi line to low on idle (You can check with a multimeter).
   It may also be a timing issue with the first bit being sent, this is the case
