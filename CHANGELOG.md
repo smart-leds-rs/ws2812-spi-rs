@@ -5,8 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- SK812w support for the `prerendered` variant
+
 ### Changed
 - Modify `FullDuplex` FIFO handling to be more resilient
+- Switch `prerendered` to use the same bit patterns as the normal variant
+
+  This removes the ability to use custom frequencies, but makes the whole code a
+  *lot* simpler & more like the normal variant.
 
 ## [0.3.0] - 2020-02-09
 ### Added

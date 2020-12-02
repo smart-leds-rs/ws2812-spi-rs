@@ -3,165 +3,182 @@
 //! This approach minimizes timing issues, at the cost of much higher ram usage.
 //! It also increases the needed time.
 
-extern crate embedded_hal as hal;
+use embedded_hal as hal;
 
-use hal::spi::FullDuplex;
+use hal::spi::{FullDuplex, Mode, Phase, Polarity};
 
-use smart_leds_trait::{SmartLedsWrite, RGB8};
+use core::marker::PhantomData;
+
+use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
 
 use nb;
 use nb::block;
 
-pub struct Ws2812<'a, SPI> {
+/// SPI mode that can be used for this crate
+///
+/// Provided for convenience
+/// Doesn't really matter
+pub const MODE: Mode = Mode {
+    polarity: Polarity::IdleLow,
+    phase: Phase::CaptureOnFirstTransition,
+};
+
+pub mod devices {
+    pub struct Ws2812;
+    pub struct Sk6812w;
+}
+
+pub struct Ws2812<'a, SPI, DEVICE = devices::Ws2812> {
     spi: SPI,
-    timing: Timing,
     data: &'a mut [u8],
+    index: usize,
+    device: PhantomData<DEVICE>,
 }
 
 impl<'a, SPI, E> Ws2812<'a, SPI>
 where
     SPI: FullDuplex<u8, Error = E>,
 {
-    /// The SPI bus should run exactly with the provided frequency
+    /// Use ws2812 devices via spi
+    ///
+    /// The SPI bus should run within 2 MHz to 3.8 MHz
     ///
     /// You may need to look at the datasheet and your own hal to verify this.
     ///
-    /// You need to provide a buffer `data`, whoose length is at least 3 the
-    /// length of the led strip.
-    /// You can calculate the exact amount for frequencies >= 3 MHz with
-    /// "spi frequency / 1_100_00" rounded up
-    pub fn new(spi: SPI, timing: Timing, data: &'a mut [u8]) -> Ws2812<'a, SPI> {
-        Self { spi, timing, data }
+    /// You need to provide a buffer `data`, whoose length is at least 12 * the
+    /// length of the led strip + 20 byes (or 40, if using the `mosi_idle_high` feature)
+    ///
+    /// Please ensure that the mcu is pretty fast, otherwise weird timing
+    /// issues will occur
+    pub fn new(spi: SPI, data: &'a mut [u8]) -> Self {
+        Self {
+            spi,
+            data,
+            index: 0,
+            device: PhantomData {},
+        }
+    }
+}
+
+impl<'a, SPI, E> Ws2812<'a, SPI, devices::Sk6812w>
+where
+    SPI: FullDuplex<u8, Error = E>,
+{
+    /// Use sk6812w devices via spi
+    ///
+    /// The SPI bus should run within 2.3 MHz to 3.8 MHz at least.
+    ///
+    /// You may need to look at the datasheet and your own hal to verify this.
+    ///
+    /// You need to provide a buffer `data`, whoose length is at least 12 * the
+    /// length of the led strip + 20 byes (or 40, if using the `mosi_idle_high` feature)
+    ///
+    /// Please ensure that the mcu is pretty fast, otherwise weird timing
+    /// issues will occur
+    // The spi frequencies are just the limits, the available timing data isn't
+    // complete
+    pub fn new_sk6812w(spi: SPI, data: &'a mut [u8]) -> Self {
+        Self {
+            spi,
+            data,
+            index: 0,
+            device: PhantomData {},
+        }
+    }
+}
+
+impl<'a, SPI, D, E> Ws2812<'a, SPI, D>
+where
+    SPI: FullDuplex<u8, Error = E>,
+{
+    /// Write a single byte for ws2812 devices
+    fn write_byte(&mut self, mut data: u8) {
+        // Send two bits in one spi byte. High time first, then the low time
+        // The maximum for T0H is 500ns, the minimum for one bit 1063 ns.
+        // These result in the upper and lower spi frequency limits
+        let patterns = [0b1000_1000, 0b1000_1110, 0b11101000, 0b11101110];
+        for _ in 0..4 {
+            let bits = (data & 0b1100_0000) >> 6;
+            self.data[self.index] = patterns[bits as usize];
+            self.index += 1;
+            data <<= 2;
+        }
     }
 
-    /// Write a single byte for ws2812 devices
-    fn write_byte(
-        &mut self,
-        mut data: u8,
-        serial_data: &mut u32,
-        serial_count: &mut u8,
-        index: &mut usize,
-    ) -> Result<(), E> {
-        for _ in 0..8 {
-            let pattern = if (data & 0x80) != 0 {
-                self.timing.one_pattern
-            } else {
-                self.timing.zero_pattern
-            };
-            *serial_count += self.timing.len;
-            *serial_data |= pattern << (32 - *serial_count);
-            while *serial_count > 7 {
-                let data = (*serial_data >> 24) as u8;
-                self.data[*index] = data;
-                *index += 1;
-                *serial_data <<= 8;
-                *serial_count -= 8;
-            }
-            data <<= 1;
+    fn flush(&mut self) {
+        for _ in 0..20 {
+            self.data[self.index] = 0;
+            self.index += 1;
         }
-        Ok(())
     }
-    fn flush(&mut self) -> Result<(), E> {
-        for _ in 0..self.timing.flush_bytes {
-            block!(self.spi.send(0))?;
-            self.spi.read().ok();
+    fn send_data(&mut self) -> Result<(), E> {
+        // We introduce an offset in the fifo here, so there's always one byte in transit
+        // Some MCUs (like the stm32f1) only a one byte fifo, which would result
+        // in overrun error if two bytes need to be stored
+        block!(self.spi.send(0))?;
+        for b in self.data[..self.index].iter() {
+            block!(self.spi.send(*b))?;
+            block!(self.spi.read())?;
         }
+        // Now, resolve the offset we introduced at the beginning
+        block!(self.spi.read())?;
         Ok(())
     }
 }
 
-impl<SPI, E> SmartLedsWrite for Ws2812<'_, SPI>
+impl<'a, SPI, E> SmartLedsWrite for Ws2812<'a, SPI>
 where
     SPI: FullDuplex<u8, Error = E>,
 {
     type Error = E;
     type Color = RGB8;
     /// Write all the items of an iterator to a ws2812 strip
-    fn write<T, I>(&mut self, iterator: T) -> Result<(), Self::Error>
+    fn write<T, I>(&mut self, iterator: T) -> Result<(), E>
     where
         T: Iterator<Item = I>,
         I: Into<Self::Color>,
     {
+        self.index = 0;
         if cfg!(feature = "mosi_idle_high") {
-            self.flush()?;
+            self.flush();
         }
 
-        let mut serial_data: u32 = 0;
-        let mut serial_count = 0;
-        let mut index = 0;
         for item in iterator {
             let item = item.into();
-            self.write_byte(item.g, &mut serial_data, &mut serial_count, &mut index)?;
-            self.write_byte(item.r, &mut serial_data, &mut serial_count, &mut index)?;
-            self.write_byte(item.b, &mut serial_data, &mut serial_count, &mut index)?;
+            self.write_byte(item.g);
+            self.write_byte(item.r);
+            self.write_byte(item.b);
         }
-        for d in self.data.iter().take(index + 1) {
-            block!(self.spi.send(*d))?;
-            self.spi.read().ok();
-        }
-        self.flush()?;
-        Ok(())
+        self.flush();
+        self.send_data()
     }
 }
 
-#[derive(Debug)]
-pub struct Timing {
-    one_pattern: u32,
-    zero_pattern: u32,
-    len: u8,
-    flush_bytes: usize,
-}
-
-impl Timing {
-    /// Create timing values for the provided frequency
-    pub fn new(mhz: u32) -> Option<Self> {
-        if mhz < 2_000_000 {
-            return None;
-        }
-        static ONE_HIGH: u32 = 1_510_000;
-        static ZERO_HIGH: u32 = 5_000_000;
-        static TOTAL: u32 = 1_100_000;
-        static FLUSH: u32 = 3_000;
-
-        let mut zero_high = mhz / ZERO_HIGH;
-        // Make sure we have at least something
-        if zero_high == 0 {
-            zero_high = 1;
+impl<'a, SPI, E> SmartLedsWrite for Ws2812<'a, SPI, devices::Sk6812w>
+where
+    SPI: FullDuplex<u8, Error = E>,
+{
+    type Error = E;
+    type Color = RGBW<u8, u8>;
+    /// Write all the items of an iterator to a ws2812 strip
+    fn write<T, I>(&mut self, iterator: T) -> Result<(), E>
+    where
+        T: Iterator<Item = I>,
+        I: Into<Self::Color>,
+    {
+        self.index = 0;
+        if cfg!(feature = "mosi_idle_high") {
+            self.flush();
         }
 
-        // Round up
-        let one_high = mhz / ONE_HIGH + 1;
-        let mut total = mhz / TOTAL + 1;
-        // Make sure total is at least one higher than one_high
-        if total == one_high {
-            total = one_high + 1;
+        for item in iterator {
+            let item = item.into();
+            self.write_byte(item.g);
+            self.write_byte(item.r);
+            self.write_byte(item.b);
+            self.write_byte(item.a.0);
         }
-        if total > 28 {
-            return None;
-        }
-        let flush = ((mhz / FLUSH + 1) / 8 + 1) as usize;
-        // Create patterns
-        let mut one_pattern = 0;
-        let mut zero_pattern = 0;
-        for _ in 0..one_high {
-            one_pattern <<= 1;
-            one_pattern |= 1;
-        }
-        for _ in 0..total - one_high {
-            one_pattern <<= 1;
-        }
-        for _ in 0..zero_high {
-            zero_pattern <<= 1;
-            zero_pattern |= 1;
-        }
-        for _ in 0..total - zero_high {
-            zero_pattern <<= 1;
-        }
-        Some(Self {
-            one_pattern,
-            zero_pattern,
-            len: total as u8,
-            flush_bytes: flush,
-        })
+        self.flush();
+        self.send_data()
     }
 }
