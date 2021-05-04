@@ -28,6 +28,7 @@ It provides two variants:
   the UART peripheral. You should verify it runs at an acceptable frequency, by
   either studying the datasheet & the hal code or using a logic analyzer. An
   fx2 based one, commonly available under $10 works great for this.
+
 - If the first led is always on, no matter what data you put in, your spi is
   probably not setting the mosi line to low on idle (You can check with a multimeter).
   It may also be a timing issue with the first bit being sent, this is the case
@@ -41,7 +42,7 @@ It provides two variants:
 - Is everything white? This may stem from an spi peripheral that's too slow or
   one that takes too much time in-between bytes
 
-- are you using the `--release` compiler flag?  
+- Are you using the `--release` compiler flag?  
 
   The timing of each byte passed over SPI is very sensitive, and running code compiled
   without full optimizations can throw off your timing. Always use either `--release`
