@@ -106,7 +106,8 @@ where
     }
 
     fn flush(&mut self) -> Result<(), E> {
-        for _ in 0..20 {
+        // Should be > 300μs, so for an SPI Freq. of 3.8MHz, we have to send at least 1140 low bits or 140 low bytes
+        for _ in 0..140 {
             block!(self.spi.send(0))?;
             block!(self.spi.read()).ok();
         }
