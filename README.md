@@ -41,6 +41,14 @@ It provides two variants:
 - Is everything white? This may stem from an spi peripheral that's too slow or
   one that takes too much time in-between bytes
 
+- are you using the `--release` compiler flag?  
+
+  The timing of each byte passed over SPI is very sensitive, and running code compiled
+  without full optimizations can throw off your timing. Always use either `--release`
+  flag with your `cargo <command>`, or alternatively set `[profile.dev] opt-level = "3"` 
+  To ensure timing matches what your programmed. A dead giveaway of this is when all 
+  pixels go full brightness for every color. 
+
 When opening an issue about wrong/strange data, it would help if you include
 your code (of course) and a capture of MOSI & SCK from an oscilloscope/a logic
 analyzer.
