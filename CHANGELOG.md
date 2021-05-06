@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Increased reset time from ~50μs to ~300μs, to deal with more/newer variants
+
 ## [0.4.0] - 2020-12-02
 ### Added
 - SK812w support for the `prerendered` variant
