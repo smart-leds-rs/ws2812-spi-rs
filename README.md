@@ -28,6 +28,7 @@ It provides two variants:
   the UART peripheral. You should verify it runs at an acceptable frequency, by
   either studying the datasheet & the hal code or using a logic analyzer. An
   fx2 based one, commonly available under $10 works great for this.
+
 - If the first led is always on, no matter what data you put in, your spi is
   probably not setting the mosi line to low on idle (You can check with a multimeter).
   It may also be a timing issue with the first bit being sent, this is the case
@@ -40,6 +41,14 @@ It provides two variants:
 
 - Is everything white? This may stem from an spi peripheral that's too slow or
   one that takes too much time in-between bytes
+
+- Are you using the `--release` compiler flag?  
+
+  The timing of each byte passed over SPI is very sensitive, and running code compiled
+  without full optimizations can throw off your timing. Always use either `--release`
+  flag with your `cargo <command>`, or alternatively set `[profile.dev] opt-level = "3"` 
+  To ensure timing matches what your programmed. A dead giveaway of this is when all 
+  pixels go full brightness for every color. 
 
 When opening an issue about wrong/strange data, it would help if you include
 your code (of course) and a capture of MOSI & SCK from an oscilloscope/a logic
