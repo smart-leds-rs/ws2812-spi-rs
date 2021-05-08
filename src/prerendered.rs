@@ -71,7 +71,7 @@ where
     /// You may need to look at the datasheet and your own hal to verify this.
     ///
     /// You need to provide a buffer `data`, whoose length is at least 12 * the
-    /// length of the led strip + 20 byes (or 40, if using the `mosi_idle_high` feature)
+    /// length of the led strip
     ///
     /// Please ensure that the mcu is pretty fast, otherwise weird timing
     /// issues will occur
@@ -105,19 +105,23 @@ where
         }
     }
 
-    fn flush(&mut self) {
-        for _ in 0..20 {
-            self.data[self.index] = 0;
-            self.index += 1;
-        }
-    }
     fn send_data(&mut self) -> Result<(), E> {
         // We introduce an offset in the fifo here, so there's always one byte in transit
         // Some MCUs (like the stm32f1) only a one byte fifo, which would result
         // in overrun error if two bytes need to be stored
         block!(self.spi.send(0))?;
+        if cfg!(feature = "mosi_idle_high") {
+            for _ in 0..140 {
+                block!(self.spi.send(0))?;
+                block!(self.spi.read())?;
+            }
+        }
         for b in self.data[..self.index].iter() {
             block!(self.spi.send(*b))?;
+            block!(self.spi.read())?;
+        }
+        for _ in 0..140 {
+            block!(self.spi.send(0))?;
             block!(self.spi.read())?;
         }
         // Now, resolve the offset we introduced at the beginning
@@ -139,9 +143,6 @@ where
         I: Into<Self::Color>,
     {
         self.index = 0;
-        if cfg!(feature = "mosi_idle_high") {
-            self.flush();
-        }
 
         for item in iterator {
             let item = item.into();
@@ -149,7 +150,6 @@ where
             self.write_byte(item.r);
             self.write_byte(item.b);
         }
-        self.flush();
         self.send_data()
     }
 }
@@ -167,9 +167,6 @@ where
         I: Into<Self::Color>,
     {
         self.index = 0;
-        if cfg!(feature = "mosi_idle_high") {
-            self.flush();
-        }
 
         for item in iterator {
             let item = item.into();
@@ -178,7 +175,6 @@ where
             self.write_byte(item.b);
             self.write_byte(item.a.0);
         }
-        self.flush();
         self.send_data()
     }
 }
