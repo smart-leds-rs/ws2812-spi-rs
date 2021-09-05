@@ -42,6 +42,12 @@ It provides two variants:
 - Is everything white? This may stem from an spi peripheral that's too slow or
   one that takes too much time in-between bytes
 
+- Is your first LED the wrong brightness/color while the rest of your LED's do what you expect?
+This is due to low voltage of data line, or too much of a voltage difference between Vin and Din
+voltages, making some "high" bits read as "low" bits to the chip. Due to the chips circuitry, these
+voltages are regulated as they are passed on to the next LED in the line, which is why the other LED's
+perform as expected. (For more on exactly what is going on here, see [Hackaday | Cheating at 5V WS2812 Control to Use 3.3V Data](https://hackaday.com/2017/01/20/cheating-at-5v-ws2812-control-to-use-a-3-3v-data-line/))
+
 - Are you using the `--release` compiler flag?  
 
   The timing of each byte passed over SPI is very sensitive, and running code compiled
