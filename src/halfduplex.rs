@@ -4,17 +4,33 @@
 //! - Implements the `SmartLedsWrite` trait
 //!
 //! Needs a type implementing the `spi::FullDuplex` trait.
-//!
-//! The spi peripheral should run at 2MHz to 3.8 MHz
-
+//!0
+//! The spi peripheral should run at 4MHz. Each neopixel bit is 5 SPI bits. 
+//! In this way the neopixel timing is exact 800 Khrz, and the timing for the low and high bits
+//! is within the specification. 
+//!            specification (ns)      this variant (ns)      lib.rs variant (ns)
+//! low bit:   800/450                 725/500                 999/333
+//! high bit   400/850                 500/750                 333/999
+//! frequency  800 Khz                 800Khz                  750 Khz
+//! 
+//! The max deviation for the timing here is 100 ns, where the max deviation of the timing in lib.rs
+//! is 199 ms. 
+//! 
+//! Note that the 5 bit pattern always has a zero at the beginning and the end. In this way the deviation
+//! in timing due to calculation for the next pixel (each 24 bits) will always happen during a zero phase. The zero phase
+//! is less time sensitive than the one phase.
+//!  
+//! This variant can run on a cpu clock of 16 Mhz and multiples (32, 64)
+//! 
+//! Note that this halfduplex variant can only run with a feature branch of the hal.
+//! where the fullduplex spi can be switched to half duplex output mode and 5 bits wide operation
+//! An example how to use this variant can be found in the examples of this feature branch see
+//! 
+// 
 // Timings for ws2812 from https://cpldcpu.files.wordpress.com/2014/01/ws2812_timing_table.png
 // Timings for sk6812 from https://cpldcpu.wordpress.com/2016/03/09/the-sk6812-another-intelligent-rgb-led/
 
-#![no_std]
-
 use embedded_hal as hal;
-
-pub mod halfduplex;
 
 use hal::spi::{FullDuplex, Mode, Phase, Polarity};
 
@@ -24,6 +40,8 @@ use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
 
 use nb;
 use nb::block;
+
+
 
 /// SPI mode that can be used for this crate
 ///
@@ -92,15 +110,21 @@ where
 {
     /// Write a single byte for ws2812 devices
     fn write_byte(&mut self, mut data: u8) -> Result<(), E> {
-        // Send two bits in one spi byte. High time first, then the low time
-        // The maximum for T0H is 500ns, the minimum for one bit 1063 ns.
-        // These result in the upper and lower spi frequency limits
-        let patterns = [0b1000_1000, 0b1000_1110, 0b11101000, 0b11101110];
-        for _ in 0..4 {
-            let bits = (data & 0b1100_0000) >> 6;
-            block!(self.spi.send(patterns[bits as usize]))?;
-            block!(self.spi.read()).ok();
-            data <<= 2;
+        // Send one bit in one spi byte. High time first, then the low time
+        // clock is 4 hrz, 5 bits, each bit is 0.25 us.
+        // a one bit is send as a pulse of 0.75 high -- 0.50 low
+        // a zero bit is send as a pulse of 0.50 high -- 0.75 low
+        // clock frequency for the neopixel is exact 800 khz
+
+        for _ in 0..8 {
+            let pattern = 
+                match data & 0x80 {
+                    0x80 => 0b1110_1110,
+                    0x0  => 0b1110_1100,
+                    _    => 0b1111_1111
+                }; 
+            block!(self.spi.send(pattern));
+            data = data << 1;
         }
         Ok(())
     }
@@ -109,7 +133,6 @@ where
         // Should be > 300μs, so for an SPI Freq. of 3.8MHz, we have to send at least 1140 low bits or 140 low bytes
         for _ in 0..140 {
             block!(self.spi.send(0))?;
-            block!(self.spi.read()).ok();
         }
         Ok(())
     }
@@ -134,7 +157,6 @@ where
         if cfg!(feature = "mosi_idle_high") {
             self.flush()?;
         }
-
         for item in iterator {
             let item = item.into();
             self.write_byte(item.g)?;
@@ -142,8 +164,6 @@ where
             self.write_byte(item.b)?;
         }
         self.flush()?;
-        // Now, resolve the offset we introduced at the beginning
-        block!(self.spi.read())?;
         Ok(())
     }
 }
@@ -176,8 +196,6 @@ where
             self.write_byte(item.a.0)?;
         }
         self.flush()?;
-        // Now, resolve the offset we introduced at the beginning
-        block!(self.spi.read())?;
         Ok(())
     }
 }
