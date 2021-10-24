@@ -14,11 +14,16 @@
 //! frequency  800 Khz                 800Khz                  750 Khz
 //! 
 //! The max deviation for the timing here is 100 ns, where the max deviation of the timing in lib.rs
-//! is 199 ms. 
+//! is 199 us. 
 //! 
-//! Note that the 5 bit pattern always has a zero at the beginning and the end. In this way the deviation
-//! in timing due to calculation for the next pixel (each 24 bits) will always happen during a zero phase. The zero phase
-//! is less time sensitive than the one phase.
+//! Due to the use of half duplex, the tx fifo of the spi is optimal used , so 6 neopixel bits (== 30 spi bits) 
+//! can be stored in the fifo.
+//! 
+//! During the calculation of the next pixel one can see that the bit pattern is stretched (at 16 mhz cpu clock), 
+//! so calculation takes longer than the six neopixel bits in the fifo (longer than 6 * 1.25 us = 7.5 us).
+//! 
+//! Note that the 5 bit pattern always has a zero at the beginning and the end. In this way stretching  will always 
+//! happen during a zero phase. The zero phase is less time sensitive than the one phase.
 //!  
 //! This variant can run on a cpu clock of 16 Mhz and multiples (32, 64)
 //! 
