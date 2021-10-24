@@ -25,6 +25,7 @@
 //! Note that this halfduplex variant can only run with a feature branch of the hal.
 //! where the fullduplex spi can be switched to half duplex output mode and 5 bits wide operation
 //! An example how to use this variant can be found in the examples of this feature branch see
+//! https://github.com/smeenka/rust-examples/blob/master/nucleo-G070/examples/neopixel5bits.rs
 //! 
 // 
 // Timings for ws2812 from https://cpldcpu.files.wordpress.com/2014/01/ws2812_timing_table.png
