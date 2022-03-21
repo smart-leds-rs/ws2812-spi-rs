@@ -48,11 +48,7 @@ where
     /// You may need to look at the datasheet and your own hal to verify this.
     ///
     pub fn new(spi: SPI) -> Self {
-        let data = if cfg!(feature = "mosi_idle_high") {
-            vec![0; 140]
-        } else {
-            vec![]
-        };
+        let data = vec![0; 140];
 
         Self {
             spi,
@@ -75,11 +71,7 @@ where
     // The spi frequencies are just the limits, the available timing data isn't
     // complete
     pub fn new_sk6812w(spi: SPI) -> Self {
-        let data = if cfg!(feature = "mosi_idle_high") {
-            vec![0; 140]
-        } else {
-            vec![]
-        };
+        let data = vec![0; 140];
 
         Self {
             spi,
@@ -109,11 +101,7 @@ where
     fn send_data(&mut self) -> Result<(), E> {
         self.data.extend_from_slice(&[0; 140]);
         self.spi.write(&self.data)?;
-        self.data.truncate(if cfg!(feature = "mosi_idle_high") {
-            140
-        } else {
-            0
-        });
+        self.data.truncate(140);
         Ok(())
     }
 }
