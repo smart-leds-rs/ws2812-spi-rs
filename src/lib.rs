@@ -15,6 +15,7 @@
 use embedded_hal as hal;
 
 pub mod prerendered;
+pub mod transfer;
 
 use hal::spi::{FullDuplex, Mode, Phase, Polarity};
 
