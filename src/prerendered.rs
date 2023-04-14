@@ -23,6 +23,12 @@ pub const MODE: Mode = Mode {
     phase: Phase::CaptureOnFirstTransition,
 };
 
+#[derive(Debug)]
+pub enum Error<E> {
+    OutOfBounds,
+    Spi(E),
+}
+
 pub mod devices {
     pub struct Ws2812;
     pub struct Sk6812w;
@@ -92,17 +98,22 @@ where
     SPI: FullDuplex<u8, Error = E>,
 {
     /// Write a single byte for ws2812 devices
-    fn write_byte(&mut self, mut data: u8) {
+    fn write_byte(&mut self, mut data: u8) -> Result<(), Error<E>> {
         // Send two bits in one spi byte. High time first, then the low time
         // The maximum for T0H is 500ns, the minimum for one bit 1063 ns.
         // These result in the upper and lower spi frequency limits
         let patterns = [0b1000_1000, 0b1000_1110, 0b11101000, 0b11101110];
+
+        if self.index > self.data.len() - 4 {
+            return Err(Error::OutOfBounds);
+        }
         for _ in 0..4 {
             let bits = (data & 0b1100_0000) >> 6;
             self.data[self.index] = patterns[bits as usize];
             self.index += 1;
             data <<= 2;
         }
+        Ok(())
     }
 
     fn send_data(&mut self) -> Result<(), E> {
@@ -134,10 +145,10 @@ impl<'a, SPI, E> SmartLedsWrite for Ws2812<'a, SPI>
 where
     SPI: FullDuplex<u8, Error = E>,
 {
-    type Error = E;
+    type Error = Error<E>;
     type Color = RGB8;
     /// Write all the items of an iterator to a ws2812 strip
-    fn write<T, I>(&mut self, iterator: T) -> Result<(), E>
+    fn write<T, I>(&mut self, iterator: T) -> Result<(), Error<E>>
     where
         T: Iterator<Item = I>,
         I: Into<Self::Color>,
@@ -146,11 +157,11 @@ where
 
         for item in iterator {
             let item = item.into();
-            self.write_byte(item.g);
-            self.write_byte(item.r);
-            self.write_byte(item.b);
+            self.write_byte(item.g)?;
+            self.write_byte(item.r)?;
+            self.write_byte(item.b)?;
         }
-        self.send_data()
+        self.send_data().map_err(|e| Error::Spi(e))
     }
 }
 
@@ -158,10 +169,10 @@ impl<'a, SPI, E> SmartLedsWrite for Ws2812<'a, SPI, devices::Sk6812w>
 where
     SPI: FullDuplex<u8, Error = E>,
 {
-    type Error = E;
+    type Error = Error<E>;
     type Color = RGBW<u8, u8>;
     /// Write all the items of an iterator to a ws2812 strip
-    fn write<T, I>(&mut self, iterator: T) -> Result<(), E>
+    fn write<T, I>(&mut self, iterator: T) -> Result<(), Error<E>>
     where
         T: Iterator<Item = I>,
         I: Into<Self::Color>,
@@ -170,11 +181,11 @@ where
 
         for item in iterator {
             let item = item.into();
-            self.write_byte(item.g);
-            self.write_byte(item.r);
-            self.write_byte(item.b);
-            self.write_byte(item.a.0);
+            self.write_byte(item.g)?;
+            self.write_byte(item.r)?;
+            self.write_byte(item.b)?;
+            self.write_byte(item.a.0)?;
         }
-        self.send_data()
+        self.send_data().map_err(|e| Error::Spi(e))
     }
 }
