@@ -22,7 +22,6 @@ use core::marker::PhantomData;
 
 use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
 
-use nb;
 use nb::block;
 
 /// SPI mode that can be used for this crate
@@ -124,7 +123,7 @@ where
     /// Write all the items of an iterator to a ws2812 strip
     fn write<T, I>(&mut self, iterator: T) -> Result<(), E>
     where
-        T: Iterator<Item = I>,
+        T: IntoIterator<Item = I>,
         I: Into<Self::Color>,
     {
         // We introduce an offset in the fifo here, so there's always one byte in transit
@@ -157,7 +156,7 @@ where
     /// Write all the items of an iterator to a ws2812 strip
     fn write<T, I>(&mut self, iterator: T) -> Result<(), E>
     where
-        T: Iterator<Item = I>,
+        T: IntoIterator<Item = I>,
         I: Into<Self::Color>,
     {
         // We introduce an offset in the fifo here, so there's always one byte in transit
