@@ -150,7 +150,7 @@ where
     /// Write all the items of an iterator to a ws2812 strip
     fn write<T, I>(&mut self, iterator: T) -> Result<(), Error<E>>
     where
-        T: Iterator<Item = I>,
+        T: IntoIterator<Item = I>,
         I: Into<Self::Color>,
     {
         self.index = 0;
@@ -174,7 +174,7 @@ where
     /// Write all the items of an iterator to a ws2812 strip
     fn write<T, I>(&mut self, iterator: T) -> Result<(), Error<E>>
     where
-        T: Iterator<Item = I>,
+        T: IntoIterator<Item = I>,
         I: Into<Self::Color>,
     {
         self.index = 0;
