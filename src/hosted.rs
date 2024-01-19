@@ -1,0 +1,152 @@
+//! # Use ws2812 leds via spi on linux hosts
+//!
+//! This dynamically allocates an output buffer and writes out the data in a single call.
+//! Much better suited for linux or similar environments, but may not always work
+//!
+//! Intendded for use with rppal or linux-embedded-hal
+
+use embedded_hal as hal;
+
+use hal::blocking::spi::Write;
+use hal::spi::{Mode, Phase, Polarity};
+
+use core::marker::PhantomData;
+
+use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
+
+use std::vec;
+use std::vec::Vec;
+
+/// SPI mode that can be used for this crate
+///
+/// Provided for convenience
+/// Doesn't really matter
+pub const MODE: Mode = Mode {
+    polarity: Polarity::IdleLow,
+    phase: Phase::CaptureOnFirstTransition,
+};
+
+pub mod devices {
+    pub struct Ws2812;
+    pub struct Sk6812w;
+}
+
+pub struct Ws2812<SPI, DEVICE = devices::Ws2812> {
+    spi: SPI,
+    data: Vec<u8>,
+    device: PhantomData<DEVICE>,
+}
+
+impl<SPI, E> Ws2812<SPI>
+where
+    SPI: Write<u8, Error = E>,
+{
+    /// Use ws2812 devices via spi
+    ///
+    /// The SPI bus should run within 2 MHz to 3.8 MHz
+    ///
+    /// You may need to look at the datasheet and your own hal to verify this.
+    ///
+    pub fn new(spi: SPI) -> Self {
+        let data = vec![0; 140];
+
+        Self {
+            spi,
+            data,
+            device: PhantomData {},
+        }
+    }
+}
+
+impl<SPI, E> Ws2812<SPI, devices::Sk6812w>
+where
+    SPI: Write<u8, Error = E>,
+{
+    /// Use sk6812w devices via spi
+    ///
+    /// The SPI bus should run within 2.3 MHz to 3.8 MHz at least.
+    ///
+    /// You may need to look at the datasheet and your own hal to verify this.
+    ///
+    // The spi frequencies are just the limits, the available timing data isn't
+    // complete
+    pub fn new_sk6812w(spi: SPI) -> Self {
+        let data = vec![0; 140];
+
+        Self {
+            spi,
+            data,
+            device: PhantomData {},
+        }
+    }
+}
+
+impl<SPI, D, E> Ws2812<SPI, D>
+where
+    SPI: Write<u8, Error = E>,
+{
+    /// Write a single byte for ws2812 devices
+    fn write_byte(&mut self, mut data: u8) {
+        // Send two bits in one spi byte. High time first, then the low time
+        // The maximum for T0H is 500ns, the minimum for one bit 1063 ns.
+        // These result in the upper and lower spi frequency limits
+        let patterns = [0b1000_1000, 0b1000_1110, 0b11101000, 0b11101110];
+        for _ in 0..4 {
+            let bits = (data & 0b1100_0000) >> 6;
+            self.data.push(patterns[bits as usize]);
+            data <<= 2;
+        }
+    }
+
+    fn send_data(&mut self) -> Result<(), E> {
+        self.data.extend_from_slice(&[0; 140]);
+        self.spi.write(&self.data)?;
+        self.data.truncate(140);
+        Ok(())
+    }
+}
+
+impl<SPI, E> SmartLedsWrite for Ws2812<SPI>
+where
+    SPI: Write<u8, Error = E>,
+{
+    type Error = E;
+    type Color = RGB8;
+    /// Write all the items of an iterator to a ws2812 strip
+    fn write<T, I>(&mut self, iterator: T) -> Result<(), E>
+    where
+        T: Iterator<Item = I>,
+        I: Into<Self::Color>,
+    {
+        for item in iterator {
+            let item = item.into();
+            self.write_byte(item.g);
+            self.write_byte(item.r);
+            self.write_byte(item.b);
+        }
+        self.send_data()
+    }
+}
+
+impl<SPI, E> SmartLedsWrite for Ws2812<SPI, devices::Sk6812w>
+where
+    SPI: Write<u8, Error = E>,
+{
+    type Error = E;
+    type Color = RGBW<u8, u8>;
+    /// Write all the items of an iterator to a sk6812w strip
+    fn write<T, I>(&mut self, iterator: T) -> Result<(), E>
+    where
+        T: Iterator<Item = I>,
+        I: Into<Self::Color>,
+    {
+        for item in iterator {
+            let item = item.into();
+            self.write_byte(item.g);
+            self.write_byte(item.r);
+            self.write_byte(item.b);
+            self.write_byte(item.a.0);
+        }
+        self.send_data()
+    }
+}
