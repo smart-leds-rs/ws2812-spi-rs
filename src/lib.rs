@@ -3,7 +3,7 @@
 //! - For usage with `smart-leds`
 //! - Implements the `SmartLedsWrite` trait
 //!
-//! Needs a type implementing the `spi::FullDuplex` trait.
+//! Needs a type implementing the `spi::SpiBus` trait.
 //!
 //! The spi peripheral should run at 2MHz to 3.8 MHz
 
@@ -16,13 +16,12 @@ use embedded_hal as hal;
 
 pub mod prerendered;
 
-use hal::spi::{FullDuplex, Mode, Phase, Polarity};
+use hal::spi::{Mode, Phase, Polarity, SpiBus};
 
 use core::marker::PhantomData;
+use core::slice::from_ref;
 
 use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
-
-use nb::block;
 
 /// SPI mode that can be used for this crate
 ///
@@ -45,7 +44,7 @@ pub struct Ws2812<SPI, DEVICE = devices::Ws2812> {
 
 impl<SPI, E> Ws2812<SPI>
 where
-    SPI: FullDuplex<u8, Error = E>,
+    SPI: SpiBus<u8, Error = E>,
 {
     /// Use ws2812 devices via spi
     ///
@@ -65,7 +64,7 @@ where
 
 impl<SPI, E> Ws2812<SPI, devices::Sk6812w>
 where
-    SPI: FullDuplex<u8, Error = E>,
+    SPI: SpiBus<u8, Error = E>,
 {
     /// Use sk6812w devices via spi
     ///
@@ -87,7 +86,7 @@ where
 
 impl<SPI, D, E> Ws2812<SPI, D>
 where
-    SPI: FullDuplex<u8, Error = E>,
+    SPI: SpiBus<u8, Error = E>,
 {
     /// Write a single byte for ws2812 devices
     fn write_byte(&mut self, mut data: u8) -> Result<(), E> {
@@ -97,8 +96,7 @@ where
         let patterns = [0b1000_1000, 0b1000_1110, 0b11101000, 0b11101110];
         for _ in 0..4 {
             let bits = (data & 0b1100_0000) >> 6;
-            block!(self.spi.send(patterns[bits as usize]))?;
-            block!(self.spi.read()).ok();
+            self.spi.write(from_ref(&patterns[bits as usize]))?;
             data <<= 2;
         }
         Ok(())
@@ -107,8 +105,7 @@ where
     fn flush(&mut self) -> Result<(), E> {
         // Should be > 300μs, so for an SPI Freq. of 3.8MHz, we have to send at least 1140 low bits or 140 low bytes
         for _ in 0..140 {
-            block!(self.spi.send(0))?;
-            block!(self.spi.read()).ok();
+            self.spi.write(from_ref(&0))?;
         }
         Ok(())
     }
@@ -116,7 +113,7 @@ where
 
 impl<SPI, E> SmartLedsWrite for Ws2812<SPI>
 where
-    SPI: FullDuplex<u8, Error = E>,
+    SPI: SpiBus<u8, Error = E>,
 {
     type Error = E;
     type Color = RGB8;
@@ -126,10 +123,6 @@ where
         T: IntoIterator<Item = I>,
         I: Into<Self::Color>,
     {
-        // We introduce an offset in the fifo here, so there's always one byte in transit
-        // Some MCUs (like the stm32f1) only a one byte fifo, which would result
-        // in overrun error if two bytes need to be stored
-        block!(self.spi.send(0))?;
         if cfg!(feature = "mosi_idle_high") {
             self.flush()?;
         }
@@ -141,15 +134,13 @@ where
             self.write_byte(item.b)?;
         }
         self.flush()?;
-        // Now, resolve the offset we introduced at the beginning
-        block!(self.spi.read())?;
         Ok(())
     }
 }
 
 impl<SPI, E> SmartLedsWrite for Ws2812<SPI, devices::Sk6812w>
 where
-    SPI: FullDuplex<u8, Error = E>,
+    SPI: SpiBus<u8, Error = E>,
 {
     type Error = E;
     type Color = RGBW<u8, u8>;
@@ -159,10 +150,6 @@ where
         T: IntoIterator<Item = I>,
         I: Into<Self::Color>,
     {
-        // We introduce an offset in the fifo here, so there's always one byte in transit
-        // Some MCUs (like the stm32f1) only a one byte fifo, which would result
-        // in overrun error if two bytes need to be stored
-        block!(self.spi.send(0))?;
         if cfg!(feature = "mosi_idle_high") {
             self.flush()?;
         }
@@ -175,8 +162,6 @@ where
             self.write_byte(item.a.0)?;
         }
         self.flush()?;
-        // Now, resolve the offset we introduced at the beginning
-        block!(self.spi.read())?;
         Ok(())
     }
 }
