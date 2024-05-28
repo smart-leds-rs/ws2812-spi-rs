@@ -5,14 +5,11 @@
 
 use embedded_hal as hal;
 
-use hal::spi::{FullDuplex, Mode, Phase, Polarity};
+use hal::spi::{Mode, Phase, Polarity, SpiBus};
 
 use core::marker::PhantomData;
 
 use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
-
-use nb;
-use nb::block;
 
 /// SPI mode that can be used for this crate
 ///
@@ -43,7 +40,7 @@ pub struct Ws2812<'a, SPI, DEVICE = devices::Ws2812> {
 
 impl<'a, SPI, E> Ws2812<'a, SPI>
 where
-    SPI: FullDuplex<u8, Error = E>,
+    SPI: SpiBus<u8, Error = E>,
 {
     /// Use ws2812 devices via spi
     ///
@@ -68,7 +65,7 @@ where
 
 impl<'a, SPI, E> Ws2812<'a, SPI, devices::Sk6812w>
 where
-    SPI: FullDuplex<u8, Error = E>,
+    SPI: SpiBus<u8, Error = E>,
 {
     /// Use sk6812w devices via spi
     ///
@@ -95,7 +92,7 @@ where
 
 impl<'a, SPI, D, E> Ws2812<'a, SPI, D>
 where
-    SPI: FullDuplex<u8, Error = E>,
+    SPI: SpiBus<u8, Error = E>,
 {
     /// Write a single byte for ws2812 devices
     fn write_byte(&mut self, mut data: u8) -> Result<(), Error<E>> {
@@ -120,30 +117,31 @@ where
         // We introduce an offset in the fifo here, so there's always one byte in transit
         // Some MCUs (like the stm32f1) only a one byte fifo, which would result
         // in overrun error if two bytes need to be stored
-        block!(self.spi.send(0))?;
+        self.spi.write(&[0])?;
+        let mut read_buf = [0u8; 1];
         if cfg!(feature = "mosi_idle_high") {
             for _ in 0..140 {
-                block!(self.spi.send(0))?;
-                block!(self.spi.read())?;
+                self.spi.write(&[0])?;
+                self.spi.read(&mut read_buf)?;
             }
         }
         for b in self.data[..self.index].iter() {
-            block!(self.spi.send(*b))?;
-            block!(self.spi.read())?;
+            self.spi.write(&[*b])?;
+            self.spi.read(&mut read_buf)?;
         }
         for _ in 0..140 {
-            block!(self.spi.send(0))?;
-            block!(self.spi.read())?;
+            self.spi.write(&[0])?;
+            self.spi.read(&mut read_buf)?;
         }
         // Now, resolve the offset we introduced at the beginning
-        block!(self.spi.read())?;
+        self.spi.read(&mut read_buf)?;
         Ok(())
     }
 }
 
 impl<'a, SPI, E> SmartLedsWrite for Ws2812<'a, SPI>
 where
-    SPI: FullDuplex<u8, Error = E>,
+    SPI: SpiBus<u8, Error = E>,
 {
     type Error = Error<E>;
     type Color = RGB8;
@@ -167,7 +165,7 @@ where
 
 impl<'a, SPI, E> SmartLedsWrite for Ws2812<'a, SPI, devices::Sk6812w>
 where
-    SPI: FullDuplex<u8, Error = E>,
+    SPI: SpiBus<u8, Error = E>,
 {
     type Error = Error<E>;
     type Color = RGBW<u8, u8>;
