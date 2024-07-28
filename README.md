@@ -20,9 +20,10 @@ It provides three variants:
   spi data.
 - Hosted
 
-  Intended for device like the raspberry pi or other linux SBCs. Similarly to
+  Intended for device like the Raspberry Pi or other Linux SBCs. Similarly to
   prerendered it creates all the data beforehand, but sends it using a single
   call.
+
 ## It doesn't work!!!
 - Do you use the normal variant? Does your spi run at the right frequency?
 

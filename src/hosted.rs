@@ -1,4 +1,4 @@
-//! # Use ws2812 leds via spi on linux hosts
+//! # Use WS2812 LEDs via SPI on Linux hosts
 //!
 //! This dynamically allocates an output buffer and writes out the data in a single call.
 //! Much better suited for linux or similar environments, but may not always work
