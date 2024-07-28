@@ -20,3 +20,4 @@ embedded-hal = "1.0.0"
 
 [features]
 mosi_idle_high = []
+std = []

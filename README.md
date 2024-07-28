@@ -7,7 +7,7 @@ An embedded-hal driver for ws2812 leds using spi as the timing provider.
 
 ![rainbow on stm32f0](./stm32f0_ws2812_spi_rainbow.gif)
 
-It provides two variants:
+It provides three variants:
 - The normal usage
 
   Your spi peripheral has to run betwee 2MHz and 3.8MHz & the SPI data is created on-the-fly.
@@ -18,6 +18,11 @@ It provides two variants:
   may want to use this. It creates all the data beforehand & then sends it. This
   means that you have to provide a data array that's large enough for all the
   spi data.
+- Hosted
+
+  Intended for device like the Raspberry Pi or other Linux SBCs. Similarly to
+  prerendered it creates all the data beforehand, but sends it using a single
+  call.
 
 ## It doesn't work!!!
 - Do you use the normal variant? Does your spi run at the right frequency?
