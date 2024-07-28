@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Increased reset time from ~50μs to ~300μs, to deal with more/newer variants
 - Add error checking (especially for the length) in the `prerendered` variant
+- Update to `embedded_hal 1.0.0`
 
 ## [0.4.0] - 2020-12-02
 ### Added
