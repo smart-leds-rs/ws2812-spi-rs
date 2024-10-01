@@ -41,11 +41,15 @@ It provides three variants:
 
   You could try using the `mosi_idle_high` feature, it might help.
 
+  If this does not help you can try different `embedded_hal::spi::Mode` parameters. For example on
+  stm32f411 (as used for example on the Black Pill board) you have to set `phase` to
+  `Phase::CaptureOnSecondTransition`.
+
 - Is your device fast enough? Is your iterator fast enough? Taking too long may
   completely screw up the timings for the normal version. Try the prerendered variant.
 
 - Is everything white? This may stem from an spi peripheral that's too slow or
-  one that takes too much time in-between bytes
+  one that takes too much time in-between bytes.
 
 - Is your first LED the wrong brightness/color while the rest of your LED's do what you expect?
 This is due to low voltage of data line, or too much of a voltage difference between Vin and Din
