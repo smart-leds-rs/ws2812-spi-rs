@@ -63,8 +63,14 @@ perform as expected. (For more on exactly what is going on here, see [Hackaday |
   without full optimizations can throw off your timing. Always use either `--release`
   flag with your `cargo <command>`, or alternatively set `[profile.dev] opt-level = "3"` 
   To ensure timing matches what your programmed. A dead giveaway of this is when all 
-  pixels go full brightness for every color. 
+  pixels go full brightness for every color.
+  
+- Does it mostly work, but sometimes some of the LEDs get randomly colored?
 
+  If your MCU does something else, besides driving the LEDs, at the same time (for example communicate via wifi)
+  make sure you have allocated large enough DMA buffer for your SPI interface,
+  since any CPU interrupts can mess up the signal timing and DMA fixes that.
+  
 When opening an issue about wrong/strange data, it would help if you include
 your code (of course) and a capture of MOSI & SCK from an oscilloscope/a logic
 analyzer.
