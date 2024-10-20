@@ -67,9 +67,7 @@ perform as expected. (For more on exactly what is going on here, see [Hackaday |
   
 - Does it mostly work, but sometimes some of the LEDs get randomly colored?
 
-  If your MCU does something else, besides driving the LEDs, at the same time (for example communicate via wifi)
-  make sure you have allocated large enough DMA buffer for your SPI interface,
-  since any CPU interrupts can mess up the signal timing and DMA fixes that.
+  As the sending process needs to be without gaps, interrupts and other parallel tasks might lead to intermittent issues. Either disable interrupts during the sending process or ensure that the internal buffer of your HAL (if it exists) is large enough.
   
 When opening an issue about wrong/strange data, it would help if you include
 your code (of course) and a capture of MOSI & SCK from an oscilloscope/a logic
