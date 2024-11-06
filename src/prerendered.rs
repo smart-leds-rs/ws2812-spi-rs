@@ -8,7 +8,6 @@ use embedded_hal as hal;
 use hal::spi::{Mode, Phase, Polarity, SpiBus};
 
 use core::marker::PhantomData;
-use core::slice::from_ref;
 
 use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
 
@@ -50,7 +49,7 @@ where
     /// You may need to look at the datasheet and your own hal to verify this.
     ///
     /// You need to provide a buffer `data`, whoose length is at least 12 * the
-    /// length of the led strip + 20 byes (or 40, if using the `mosi_idle_high` feature)
+    /// length of the led strip + 140 bytes (or 280, if using the `mosi_idle_high` feature)
     ///
     /// Please ensure that the mcu is pretty fast, otherwise weird timing
     /// issues will occur
@@ -74,8 +73,8 @@ where
     ///
     /// You may need to look at the datasheet and your own hal to verify this.
     ///
-    /// You need to provide a buffer `data`, whoose length is at least 12 * the
-    /// length of the led strip
+    /// You need to provide a buffer `data`, whoose length is at least 16 * the
+    /// length of the led strip + 140 bytes (or 280, if using the `mosi_idle_high` feature)
     ///
     /// Please ensure that the mcu is pretty fast, otherwise weird timing
     /// issues will occur
@@ -114,18 +113,21 @@ where
         Ok(())
     }
 
-    fn send_data(&mut self) -> Result<(), E> {
-        if cfg!(feature = "mosi_idle_high") {
-            for _ in 0..140 {
-                self.spi.write(from_ref(&0))?;
-            }
-        }
+    /// Add a reset sequence (140 zeroes) to the data buffer
+    fn flush(&mut self) -> Result<(), Error<E>> {
+        const FLUSH_DATA_LEN: usize = 140;
+        const FLUSH_DATA: &[u8] = &[0x00; FLUSH_DATA_LEN];
 
-        self.spi.write(&self.data[..self.index])?;
-        for _ in 0..140 {
-            self.spi.write(from_ref(&0))?;
+        if self.index + FLUSH_DATA_LEN > self.data.len() {
+            return Err(Error::OutOfBounds);
         }
+        self.data[self.index..(self.index + FLUSH_DATA_LEN)].copy_from_slice(FLUSH_DATA);
+        self.index += FLUSH_DATA_LEN;
         Ok(())
+    }
+
+    fn send_data(&mut self) -> Result<(), E> {
+        self.spi.write(&self.data[..self.index])
     }
 }
 
@@ -143,12 +145,18 @@ where
     {
         self.index = 0;
 
+        if cfg!(feature = "mosi_idle_high") {
+            self.flush()?;
+        }
+
         for item in iterator {
             let item = item.into();
             self.write_byte(item.g)?;
             self.write_byte(item.r)?;
             self.write_byte(item.b)?;
         }
+
+        self.flush()?;
         self.send_data().map_err(|e| Error::Spi(e))
     }
 }
@@ -167,6 +175,10 @@ where
     {
         self.index = 0;
 
+        if cfg!(feature = "mosi_idle_high") {
+            self.flush()?;
+        }
+
         for item in iterator {
             let item = item.into();
             self.write_byte(item.g)?;
@@ -174,6 +186,8 @@ where
             self.write_byte(item.b)?;
             self.write_byte(item.a.0)?;
         }
+
+        self.flush()?;
         self.send_data().map_err(|e| Error::Spi(e))
     }
 }
