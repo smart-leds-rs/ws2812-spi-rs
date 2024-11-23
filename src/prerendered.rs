@@ -11,6 +11,8 @@ use core::marker::PhantomData;
 
 use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
 
+const FLUSH_DATA_LEN: usize = 140;
+
 /// SPI mode that can be used for this crate
 ///
 /// Provided for convenience
@@ -114,15 +116,25 @@ where
     }
 
     /// Add a reset sequence (140 zeroes) to the data buffer
+    #[cfg(feature = "reset_single_transaction")]
     fn flush(&mut self) -> Result<(), Error<E>> {
-        const FLUSH_DATA_LEN: usize = 140;
-        const FLUSH_DATA: &[u8] = &[0x00; FLUSH_DATA_LEN];
+        let flush_data = [(); FLUSH_DATA_LEN].map(|_| 0);
 
         if self.index + FLUSH_DATA_LEN > self.data.len() {
             return Err(Error::OutOfBounds);
         }
-        self.data[self.index..(self.index + FLUSH_DATA_LEN)].copy_from_slice(FLUSH_DATA);
+        self.data[self.index..(self.index + FLUSH_DATA_LEN)].copy_from_slice(&flush_data);
         self.index += FLUSH_DATA_LEN;
+        Ok(())
+    }
+
+    /// Send a reset sequence (140 zeroes) on the bus
+    #[cfg(not(feature = "reset_single_transaction"))]
+    fn flush(&mut self) -> Result<(), Error<E>> {
+        for _ in 0..FLUSH_DATA_LEN {
+            self.spi.write(&[0]).map_err(Error::Spi)?;
+        }
+
         Ok(())
     }
 
@@ -157,7 +169,7 @@ where
         }
 
         self.flush()?;
-        self.send_data().map_err(|e| Error::Spi(e))
+        self.send_data().map_err(Error::Spi)
     }
 }
 
@@ -188,6 +200,6 @@ where
         }
 
         self.flush()?;
-        self.send_data().map_err(|e| Error::Spi(e))
+        self.send_data().map_err(Error::Spi)
     }
 }
