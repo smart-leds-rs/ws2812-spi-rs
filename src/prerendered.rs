@@ -11,7 +11,7 @@ use core::marker::PhantomData;
 
 use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
 
-const FLUSH_DATA_LEN: usize = 140;
+const RESET_DATA_LEN: usize = 140;
 
 /// SPI mode that can be used for this crate
 ///
@@ -124,10 +124,10 @@ where
     /// Add a reset sequence (140 zeroes) to the data buffer
     // Is always used for `mosi_idle_high`, as otherwise the time required to fill the buffer can lead to idle cycles on the SPI bus
     fn write_reset(&mut self) -> Result<(), Error<E>> {
-        if self.index + FLUSH_DATA_LEN > self.data.len() {
+        if self.index + RESET_DATA_LEN > self.data.len() {
             return Err(Error::OutOfBounds);
         }
-        for _ in 0..FLUSH_DATA_LEN {
+        for _ in 0..RESET_DATA_LEN {
             self.data[self.index] = 0;
             self.index += 1;
         }
@@ -136,7 +136,7 @@ where
 
     /// Send a reset sequence (140 zeroes) on the bus
     fn send_reset(&mut self) -> Result<(), Error<E>> {
-        for _ in 0..FLUSH_DATA_LEN {
+        for _ in 0..RESET_DATA_LEN {
             self.spi.write(&[0]).map_err(Error::Spi)?;
         }
 

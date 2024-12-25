@@ -104,7 +104,7 @@ where
         Ok(())
     }
 
-    fn flush(&mut self) -> Result<(), E> {
+    fn reset(&mut self) -> Result<(), E> {
         // Should be > 300μs, so for an SPI Freq. of 3.8MHz, we have to send at least 1140 low bits or 140 low bytes
         for _ in 0..140 {
             self.spi.write(from_ref(&0))?;
@@ -126,7 +126,7 @@ where
         I: Into<Self::Color>,
     {
         if cfg!(feature = "mosi_idle_high") {
-            self.flush()?;
+            self.reset()?;
         }
 
         for item in iterator {
@@ -135,7 +135,7 @@ where
             self.write_byte(item.r)?;
             self.write_byte(item.b)?;
         }
-        self.flush()?;
+        self.reset()?;
         Ok(())
     }
 }
@@ -153,7 +153,7 @@ where
         I: Into<Self::Color>,
     {
         if cfg!(feature = "mosi_idle_high") {
-            self.flush()?;
+            self.reset()?;
         }
 
         for item in iterator {
@@ -163,7 +163,7 @@ where
             self.write_byte(item.b)?;
             self.write_byte(item.a.0)?;
         }
-        self.flush()?;
+        self.reset()?;
         Ok(())
     }
 }
