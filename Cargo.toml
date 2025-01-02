@@ -20,4 +20,6 @@ embedded-hal = "1.0.0"
 
 [features]
 mosi_idle_high = []
+# Send the reset command in one single transaction
+reset_single_transaction = []
 std = []

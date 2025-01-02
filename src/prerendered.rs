@@ -8,9 +8,10 @@ use embedded_hal as hal;
 use hal::spi::{Mode, Phase, Polarity, SpiBus};
 
 use core::marker::PhantomData;
-use core::slice::from_ref;
 
 use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
+
+const RESET_DATA_LEN: usize = 140;
 
 /// SPI mode that can be used for this crate
 ///
@@ -43,16 +44,19 @@ impl<'a, SPI, E> Ws2812<'a, SPI>
 where
     SPI: SpiBus<u8, Error = E>,
 {
-    /// Use ws2812 devices via spi
+    /// Use WS2812 devices via SPI
     ///
     /// The SPI bus should run within 2 MHz to 3.8 MHz
     ///
-    /// You may need to look at the datasheet and your own hal to verify this.
+    /// You may need to look at the datasheet and your own HAL to verify this.
     ///
-    /// You need to provide a buffer `data`, whoose length is at least 12 * the
-    /// length of the led strip + 20 byes (or 40, if using the `mosi_idle_high` feature)
+    /// You need to provide a buffer `data`, whose length is at least 12 * the
+    /// length of the led strip
+    /// - + 140 bytes if using the `reset_single_transaction` feature
+    /// - + 140 bytes if using the `mosi_idle_high` feature
+    /// - + 280 bytes if using the `mosi_idle_high` and `reset_single_transaction` features
     ///
-    /// Please ensure that the mcu is pretty fast, otherwise weird timing
+    /// Please ensure that the MCU is pretty fast, otherwise weird timing
     /// issues will occur
     pub fn new(spi: SPI, data: &'a mut [u8]) -> Self {
         Self {
@@ -68,18 +72,21 @@ impl<'a, SPI, E> Ws2812<'a, SPI, devices::Sk6812w>
 where
     SPI: SpiBus<u8, Error = E>,
 {
-    /// Use sk6812w devices via spi
+    /// Use SK6812W devices via SPI
     ///
     /// The SPI bus should run within 2.3 MHz to 3.8 MHz at least.
     ///
-    /// You may need to look at the datasheet and your own hal to verify this.
+    /// You may need to look at the datasheet and your own HAL to verify this.
     ///
-    /// You need to provide a buffer `data`, whoose length is at least 12 * the
+    /// You need to provide a buffer `data`, whose length is at least 16 * the
     /// length of the led strip
+    /// - + 140 bytes if using the `reset_single_transaction` feature
+    /// - + 140 bytes if using the `mosi_idle_high` feature
+    /// - + 280 bytes if using the `mosi_idle_high` and `reset_single_transaction` features
     ///
-    /// Please ensure that the mcu is pretty fast, otherwise weird timing
+    /// Please ensure that the MCU is pretty fast, otherwise weird timing
     /// issues will occur
-    // The spi frequencies are just the limits, the available timing data isn't
+    // The SPI frequencies are just the limits, the available timing data isn't
     // complete
     pub fn new_sk6812w(spi: SPI, data: &'a mut [u8]) -> Self {
         Self {
@@ -95,7 +102,7 @@ impl<'a, SPI, D, E> Ws2812<'a, SPI, D>
 where
     SPI: SpiBus<u8, Error = E>,
 {
-    /// Write a single byte for ws2812 devices
+    /// Write a single byte for WS2812-like devices
     fn write_byte(&mut self, mut data: u8) -> Result<(), Error<E>> {
         // Send two bits in one spi byte. High time first, then the low time
         // The maximum for T0H is 500ns, the minimum for one bit 1063 ns.
@@ -114,18 +121,30 @@ where
         Ok(())
     }
 
-    fn send_data(&mut self) -> Result<(), E> {
-        if cfg!(feature = "mosi_idle_high") {
-            for _ in 0..140 {
-                self.spi.write(from_ref(&0))?;
-            }
+    /// Add a reset sequence (140 zeroes) to the data buffer
+    // Is always used for `mosi_idle_high`, as otherwise the time required to fill the buffer can lead to idle cycles on the SPI bus
+    fn write_reset(&mut self) -> Result<(), Error<E>> {
+        if self.index + RESET_DATA_LEN > self.data.len() {
+            return Err(Error::OutOfBounds);
         }
-
-        self.spi.write(&self.data[..self.index])?;
-        for _ in 0..140 {
-            self.spi.write(from_ref(&0))?;
+        for _ in 0..RESET_DATA_LEN {
+            self.data[self.index] = 0;
+            self.index += 1;
         }
         Ok(())
+    }
+
+    /// Send a reset sequence (140 zeroes) on the bus
+    fn send_reset(&mut self) -> Result<(), Error<E>> {
+        for _ in 0..RESET_DATA_LEN {
+            self.spi.write(&[0]).map_err(Error::Spi)?;
+        }
+
+        Ok(())
+    }
+
+    fn send_data(&mut self) -> Result<(), E> {
+        self.spi.write(&self.data[..self.index])
     }
 }
 
@@ -135,7 +154,7 @@ where
 {
     type Error = Error<E>;
     type Color = RGB8;
-    /// Write all the items of an iterator to a ws2812 strip
+    /// Write all the items of an iterator to a WS2812 strip
     fn write<T, I>(&mut self, iterator: T) -> Result<(), Error<E>>
     where
         T: IntoIterator<Item = I>,
@@ -143,13 +162,27 @@ where
     {
         self.index = 0;
 
+        if cfg!(feature = "mosi_idle_high") {
+            self.write_reset()?;
+        }
+
         for item in iterator {
             let item = item.into();
             self.write_byte(item.g)?;
             self.write_byte(item.r)?;
             self.write_byte(item.b)?;
         }
-        self.send_data().map_err(|e| Error::Spi(e))
+
+        if cfg!(feature = "reset_single_transaction") {
+            self.write_reset()?;
+        }
+
+        self.send_data().map_err(Error::Spi)?;
+
+        if !cfg!(feature = "reset_single_transaction") {
+            self.send_reset()?;
+        }
+        Ok(())
     }
 }
 
@@ -159,13 +192,17 @@ where
 {
     type Error = Error<E>;
     type Color = RGBW<u8, u8>;
-    /// Write all the items of an iterator to a ws2812 strip
+    /// Write all the items of an iterator to a SK6812W strip
     fn write<T, I>(&mut self, iterator: T) -> Result<(), Error<E>>
     where
         T: IntoIterator<Item = I>,
         I: Into<Self::Color>,
     {
         self.index = 0;
+
+        if cfg!(feature = "mosi_idle_high") {
+            self.write_reset()?;
+        }
 
         for item in iterator {
             let item = item.into();
@@ -174,6 +211,16 @@ where
             self.write_byte(item.b)?;
             self.write_byte(item.a.0)?;
         }
-        self.send_data().map_err(|e| Error::Spi(e))
+
+        if cfg!(feature = "reset_single_transaction") {
+            self.write_reset()?;
+        }
+
+        self.send_data().map_err(Error::Spi)?;
+
+        if !cfg!(feature = "reset_single_transaction") {
+            self.send_reset()?;
+        }
+        Ok(())
     }
 }

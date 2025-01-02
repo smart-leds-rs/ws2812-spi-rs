@@ -39,7 +39,7 @@ It provides three variants:
   It may also be a timing issue with the first bit being sent, this is the case
   on the stm32f030 with 2MHz.
 
-  You could try using the `mosi_idle_high` feature, it might help.
+  You could try using the `mosi_idle_high` and `reset_single_transaction` features, they might help.
 
   If this does not help you can try different `embedded_hal::spi::Mode` parameters. For example on
   stm32f411 (as used for example on the Black Pill board) you have to set `phase` to
