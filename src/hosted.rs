@@ -3,7 +3,7 @@
 //! This dynamically allocates an output buffer and writes out the data in a single call.
 //! Much better suited for linux or similar environments, but may not always work
 //!
-//! Intendded for use with rppal or linux-embedded-hal
+//! Intended for use with rppal or linux-embedded-hal
 
 use embedded_hal as hal;
 
