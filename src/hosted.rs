@@ -16,6 +16,9 @@ use smart_leds_trait::{SmartLedsWrite, RGB8, RGBW};
 use std::vec;
 use std::vec::Vec;
 
+use crate::pixel_order;
+use crate::OrderedColors;
+
 /// SPI mode that can be used for this crate
 ///
 /// Provided for convenience
@@ -30,15 +33,17 @@ pub mod devices {
     pub struct Sk6812w;
 }
 
-pub struct Ws2812<SPI, DEVICE = devices::Ws2812> {
+pub struct Ws2812<SPI, DEVICE = devices::Ws2812, PIXELORDER = pixel_order::GRB> {
     spi: SPI,
     data: Vec<u8>,
-    device: PhantomData<DEVICE>,
+    _device: PhantomData<DEVICE>,
+    _pixel_order: PhantomData<PIXELORDER>,
 }
 
-impl<SPI, E> Ws2812<SPI>
+impl<SPI, E, PO> Ws2812<SPI, devices::Ws2812, PO>
 where
     SPI: SpiBus<u8, Error = E>,
+    PO: OrderedColors,
 {
     /// Use ws2812 devices via spi
     ///
@@ -52,7 +57,8 @@ where
         Self {
             spi,
             data,
-            device: PhantomData {},
+            _device: PhantomData {},
+            _pixel_order: PhantomData {},
         }
     }
 }
@@ -75,12 +81,13 @@ where
         Self {
             spi,
             data,
-            device: PhantomData {},
+            _device: PhantomData {},
+            _pixel_order: PhantomData {},
         }
     }
 }
 
-impl<SPI, D, E> Ws2812<SPI, D>
+impl<SPI, D, E> Ws2812<SPI, D, PO>
 where
     SPI: SpiBus<u8, Error = E>,
 {
@@ -105,9 +112,10 @@ where
     }
 }
 
-impl<SPI, E> SmartLedsWrite for Ws2812<SPI>
+impl<SPI, E, PO> SmartLedsWrite for Ws2812<SPI, devices::Ws2812, PO>
 where
     SPI: SpiBus<u8, Error = E>,
+    PO: OrderedColors,
 {
     type Error = E;
     type Color = RGB8;
@@ -118,10 +126,11 @@ where
         I: Into<Self::Color>,
     {
         for item in iterator {
-            let item = item.into();
-            self.write_byte(item.g);
-            self.write_byte(item.r);
-            self.write_byte(item.b);
+            let color: RGB8 = item.into();
+            let ordered_color = PO::order(color);
+            self.write_byte(ordered_color[0]);
+            self.write_byte(ordered_color[1]);
+            self.write_byte(ordered_color[2]);
         }
         self.send_data()
     }
@@ -141,6 +150,7 @@ where
     {
         for item in iterator {
             let item = item.into();
+            // SK6812W always expects GRBW order
             self.write_byte(item.g);
             self.write_byte(item.r);
             self.write_byte(item.b);
