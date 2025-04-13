@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - Add a `reset_single_transaction` feature for the `prerendered` version, which uses a single SPI transaction for a `write` call. Can be useful if using a DMA-approach or you're experiencing glitches due to the SPI peripheral turning high between the data and the reset.
+- Add `pixel_order` to allow for non-standard pixel orders
 
 ### Changed
 - Using the `mosi_idle_high` feature with the `prerendered` version now sends out the first reset together with the data, thus requiring a larger data buffer (but avoids potentially long dead-time between the first reset and the data being sent).
