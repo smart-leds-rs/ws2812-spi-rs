@@ -94,6 +94,13 @@ where
             device: PhantomData {},
         }
     }
+    pub fn new_sk6812w_with_custom_patterns(spi: SPI, patterns: [u8; 4]) -> Self {
+        Self {
+            spi,
+            patterns,
+            device: PhantomData {},
+        }
+    }
 }
 
 impl<SPI, D, E> Ws2812<SPI, D>
