@@ -13,6 +13,7 @@ documentation = "https://docs.rs/crate/ws2812-spi"
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/smart-leds-rs/ws2812-spi-rs"
+exclude = ["*.gif"]
 
 [dependencies]
 smart-leds-trait = "0.3.0"
