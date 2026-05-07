@@ -41,6 +41,7 @@ pub mod devices {
 
 pub struct Ws2812<SPI, DEVICE = devices::Ws2812> {
     spi: SPI,
+    patterns: [u8; 4],
     device: PhantomData<DEVICE>,
 }
 
@@ -59,6 +60,14 @@ where
     pub fn new(spi: SPI) -> Self {
         Self {
             spi,
+            patterns: [0b1000_1000, 0b1000_1110, 0b11101000, 0b11101110],
+            device: PhantomData {},
+        }
+    }
+    pub fn new_with_custom_patterns(spi: SPI, patterns: [u8; 4]) -> Self {
+        Self {
+            spi,
+            patterns,
             device: PhantomData {},
         }
     }
@@ -81,6 +90,14 @@ where
     pub fn new_sk6812w(spi: SPI) -> Self {
         Self {
             spi,
+            patterns: [0b1000_1000, 0b1000_1110, 0b11101000, 0b11101110],
+            device: PhantomData {},
+        }
+    }
+    pub fn new_sk6812w_with_custom_patterns(spi: SPI, patterns: [u8; 4]) -> Self {
+        Self {
+            spi,
+            patterns,
             device: PhantomData {},
         }
     }
@@ -95,10 +112,9 @@ where
         // Send two bits in one spi byte. High time first, then the low time
         // The maximum for T0H is 500ns, the minimum for one bit 1063 ns.
         // These result in the upper and lower spi frequency limits
-        let patterns = [0b1000_1000, 0b1000_1110, 0b11101000, 0b11101110];
         for _ in 0..4 {
             let bits = (data & 0b1100_0000) >> 6;
-            self.spi.write(from_ref(&patterns[bits as usize]))?;
+            self.spi.write(from_ref(&self.patterns[bits as usize]))?;
             data <<= 2;
         }
         Ok(())
