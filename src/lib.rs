@@ -39,14 +39,51 @@ pub mod devices {
     pub struct Sk6812w;
 }
 
-pub struct Ws2812<SPI, DEVICE = devices::Ws2812> {
-    spi: SPI,
-    device: PhantomData<DEVICE>,
+/// The color order the WS2812-like device expects. In most cases, this is GRB
+/// and doesn't need to be specified separately.
+///
+/// For SK6812W devices (with a separate white channel) this is unused
+pub mod pixel_order {
+    pub struct RGB;
+    pub struct RBG;
+    pub struct GRB;
+    pub struct GBR;
+    pub struct BRG;
+    pub struct BGR;
 }
 
-impl<SPI, E> Ws2812<SPI>
+/// Used to define the pixel order, refer to the pixel_order module
+pub trait OrderedColors {
+    fn order(color: RGB8) -> [u8; 3];
+}
+
+macro_rules! impl_ordered_colors {
+    ($struct_name:ident, $r_field:ident, $g_field:ident, $b_field:ident) => {
+        impl OrderedColors for pixel_order::$struct_name {
+            fn order(color: RGB8) -> [u8; 3] {
+                [color.$r_field, color.$g_field, color.$b_field]
+            }
+        }
+    };
+}
+
+impl_ordered_colors!(RGB, r, g, b);
+impl_ordered_colors!(RBG, r, b, g);
+impl_ordered_colors!(GRB, g, r, b);
+impl_ordered_colors!(GBR, g, b, r);
+impl_ordered_colors!(BRG, b, r, g);
+impl_ordered_colors!(BGR, b, g, r);
+
+pub struct Ws2812<SPI, DEVICE = devices::Ws2812, PIXELORDER = pixel_order::GRB> {
+    spi: SPI,
+    _device: PhantomData<DEVICE>,
+    _pixel_order: PhantomData<PIXELORDER>,
+}
+
+impl<SPI, E, PO> Ws2812<SPI, devices::Ws2812, PO>
 where
     SPI: SpiBus<u8, Error = E>,
+    PO: OrderedColors,
 {
     /// Use ws2812 devices via spi
     ///
@@ -59,12 +96,13 @@ where
     pub fn new(spi: SPI) -> Self {
         Self {
             spi,
-            device: PhantomData {},
+            _device: PhantomData {},
+            _pixel_order: PhantomData {},
         }
     }
 }
 
-impl<SPI, E> Ws2812<SPI, devices::Sk6812w>
+impl<SPI, E, PO> Ws2812<SPI, devices::Sk6812w, PO>
 where
     SPI: SpiBus<u8, Error = E>,
 {
@@ -81,12 +119,13 @@ where
     pub fn new_sk6812w(spi: SPI) -> Self {
         Self {
             spi,
-            device: PhantomData {},
+            _device: PhantomData {},
+            _pixel_order: PhantomData {},
         }
     }
 }
 
-impl<SPI, D, E> Ws2812<SPI, D>
+impl<SPI, D, E, PO> Ws2812<SPI, D, PO>
 where
     SPI: SpiBus<u8, Error = E>,
 {
@@ -113,7 +152,7 @@ where
     }
 }
 
-impl<SPI, E> SmartLedsWrite for Ws2812<SPI>
+impl<SPI, E, PO: OrderedColors> SmartLedsWrite for Ws2812<SPI, devices::Ws2812, PO>
 where
     SPI: SpiBus<u8, Error = E>,
 {
@@ -130,17 +169,18 @@ where
         }
 
         for item in iterator {
-            let item = item.into();
-            self.write_byte(item.g)?;
-            self.write_byte(item.r)?;
-            self.write_byte(item.b)?;
+            let color: RGB8 = item.into();
+            let ordered_color = PO::order(color);
+            self.write_byte(ordered_color[0])?;
+            self.write_byte(ordered_color[1])?;
+            self.write_byte(ordered_color[2])?;
         }
         self.reset()?;
         Ok(())
     }
 }
 
-impl<SPI, E> SmartLedsWrite for Ws2812<SPI, devices::Sk6812w>
+impl<SPI, E, PO> SmartLedsWrite for Ws2812<SPI, devices::Sk6812w, PO>
 where
     SPI: SpiBus<u8, Error = E>,
 {
@@ -158,6 +198,7 @@ where
 
         for item in iterator {
             let item = item.into();
+            // SK6812W always expects GRBW order
             self.write_byte(item.g)?;
             self.write_byte(item.r)?;
             self.write_byte(item.b)?;
